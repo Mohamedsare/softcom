@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom'
-import { ROUTES } from '@/routes'
 import { RegisterCompanyForm } from '@/features/auth/components/RegisterCompanyForm'
 
 function BackToLanding() {

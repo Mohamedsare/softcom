@@ -6,9 +6,8 @@ import {
   adminListStores,
   adminUpdateStore,
   adminDeleteStore,
-  type AdminStore,
 } from '@/features/admin/api/adminApi'
-import { Store, Power, PowerOff, Trash2 } from 'lucide-react'
+import { Power, PowerOff, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   AlertDialog,

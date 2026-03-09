@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, type MutableRefObject } from 'react'
 import { useParams } from 'react-router-dom'
 import { useCompany } from '@/context/CompanyContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -44,7 +44,7 @@ export function PosPage() {
   const [discount, setDiscount] = useState(0)
   const [receiptDialog, setReceiptDialog] = useState<ReceiptDialogData | null>(null)
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false)
-  const receiptSnapshotRef = useRef<Omit<ReceiptDialogData, 'saleNumber'>>(null)
+  const receiptSnapshotRef = useRef<Omit<ReceiptDialogData, 'saleNumber'> | null>(null) as MutableRefObject<Omit<ReceiptDialogData, 'saleNumber'> | null>
 
   const currentStore = stores.find((s) => s.id === storeId)
 

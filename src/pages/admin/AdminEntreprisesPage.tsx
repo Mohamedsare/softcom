@@ -8,11 +8,9 @@ import {
   adminUpdateStore,
   adminDeleteCompany,
   adminDeleteStore,
-  type AdminCompany,
   type AdminStore,
 } from '@/features/admin/api/adminApi'
 import {
-  Building2,
   Power,
   PowerOff,
   Sparkles,

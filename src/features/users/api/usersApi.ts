@@ -45,7 +45,7 @@ export async function listCompanyMembers(companyId: string): Promise<CompanyMemb
 
   const byId = new Map((profiles ?? []).map((p) => [p.id, p]))
 
-  return (rows as Array<{
+  return (rows as unknown as Array<{
     id: string
     user_id: string
     role_id: string

@@ -17,6 +17,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { toast } from 'sonner'
 
 export function AiInsightsPage() {
+  const queryClient = useQueryClient()
   const { currentCompanyId, currentStoreId, companies, stores } = useCompany()
   const [loading, setLoading] = useState(false)
   const [predictions, setPredictions] = useState<string | null>(null)
