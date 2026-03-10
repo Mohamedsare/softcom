@@ -2,12 +2,11 @@ import { useLocation, Navigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { RequireAuth } from '@/components/guards/RequireAuth'
 import { AppShell } from '@/components/layout/AppShell'
-import { LandingPage } from '@/pages/LandingPage'
 import { ROUTES } from '@/routes'
 
 /**
- * At "/": show Landing if not authenticated, else redirect to dashboard.
- * At app routes: require auth and show AppShell (Outlet is inside AppShell).
+ * Non authentifié → toujours vers la page de connexion (la landing n’est pas dans l’app).
+ * Authentifié → dashboard ou admin selon le rôle.
  */
 export function LandingOrApp() {
   const { user, loading, isSuperAdmin } = useAuth()
@@ -22,8 +21,7 @@ export function LandingOrApp() {
   }
 
   if (!user) {
-    if (location.pathname === '/') return <LandingPage />
-    return <Navigate to="/" replace />
+    return <Navigate to={ROUTES.login} replace state={{ from: location }} />
   }
 
   // Super admin : uniquement l’admin plateforme, jamais l’espace entreprise

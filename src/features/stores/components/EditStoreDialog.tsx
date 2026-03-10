@@ -17,6 +17,7 @@ export interface StoreEdit {
   email?: string | null
   description?: string | null
   is_primary?: boolean
+  pos_discount_enabled?: boolean
 }
 
 const schema = z.object({
@@ -26,6 +27,7 @@ const schema = z.object({
   email: z.string().email('Email invalide').optional().or(z.literal('')),
   description: z.string().optional(),
   is_primary: z.boolean().optional(),
+  pos_discount_enabled: z.boolean().optional(),
 })
 
 type FormData = z.infer<typeof schema>
@@ -57,6 +59,7 @@ export function EditStoreDialog({ store, open, onClose, onSuccess }: EditStoreDi
       email: store.email ?? '',
       description: store.description ?? '',
       is_primary: store.is_primary,
+      pos_discount_enabled: store.pos_discount_enabled ?? false,
     },
   })
 
@@ -69,6 +72,7 @@ export function EditStoreDialog({ store, open, onClose, onSuccess }: EditStoreDi
         email: store.email ?? '',
         description: store.description ?? '',
         is_primary: store.is_primary ?? false,
+        pos_discount_enabled: store.pos_discount_enabled ?? false,
       })
       setLogoPreview(store.logo_url ?? null)
       setLogoFile(null)
@@ -98,6 +102,7 @@ export function EditStoreDialog({ store, open, onClose, onSuccess }: EditStoreDi
         email: data.email,
         description: data.description,
         is_primary: data.is_primary,
+        pos_discount_enabled: data.pos_discount_enabled,
         logo_url: logo_url ?? undefined,
       })
       onSuccess()
@@ -183,6 +188,10 @@ export function EditStoreDialog({ store, open, onClose, onSuccess }: EditStoreDi
             <div className="flex items-center gap-2">
               <input type="checkbox" {...register('is_primary')} id="is_primary" className="rounded border-[var(--border-solid)] min-h-[20px] min-w-[20px]" />
               <Label htmlFor="is_primary" className="cursor-pointer">Boutique principale</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <input type="checkbox" {...register('pos_discount_enabled')} id="pos_discount_enabled" className="rounded border-[var(--border-solid)] min-h-[20px] min-w-[20px]" />
+              <Label htmlFor="pos_discount_enabled" className="cursor-pointer">Activer la remise en caisse (POS)</Label>
             </div>
             {submitError && <p className="text-sm text-[var(--danger)]">{submitError}</p>}
             <div className="flex gap-2">

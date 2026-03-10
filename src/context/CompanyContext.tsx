@@ -23,6 +23,7 @@ export interface Store {
   description: string | null
   is_active: boolean
   is_primary: boolean
+  pos_discount_enabled?: boolean
 }
 
 interface CompanyState {
@@ -93,7 +94,7 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
     }
     const { data, error: storesError } = await supabase
       .from('stores')
-      .select('id, company_id, name, code, address, logo_url, phone, email, description, is_active, is_primary')
+      .select('id, company_id, name, code, address, logo_url, phone, email, description, is_active, is_primary, pos_discount_enabled')
       .eq('company_id', state.currentCompanyId)
       .eq('is_active', true)
     if (storesError) {

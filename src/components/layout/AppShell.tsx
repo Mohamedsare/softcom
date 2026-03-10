@@ -6,6 +6,7 @@ import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/constants/permissions'
 import { ROUTES } from '@/routes'
 import { AdminSidebar } from '@/components/layout/AdminSidebar'
+import { InstallBanner } from '@/components/InstallBanner'
 import {
   LayoutDashboard,
   Store,
@@ -317,6 +318,8 @@ export function AppShell() {
           </span>
           <div className="w-11" />
         </header>
+
+        <InstallBanner />
 
         <div
           className="main-content-scroll min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4 lg:p-6"

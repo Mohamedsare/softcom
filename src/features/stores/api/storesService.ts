@@ -11,6 +11,7 @@ export interface CreateStoreInput {
   email?: string
   description?: string
   is_primary?: boolean
+  pos_discount_enabled?: boolean
 }
 
 export interface Store {
@@ -25,13 +26,14 @@ export interface Store {
   description: string | null
   is_active: boolean
   is_primary: boolean
+  pos_discount_enabled?: boolean
   created_at: string
 }
 
 export async function getStoresByCompany(companyId: string): Promise<Store[]> {
   const { data, error } = await supabase
     .from('stores')
-    .select('id, company_id, name, code, address, logo_url, phone, email, description, is_active, is_primary, created_at')
+    .select('id, company_id, name, code, address, logo_url, phone, email, description, is_active, is_primary, pos_discount_enabled, created_at')
     .eq('company_id', companyId)
   if (error) throw new Error(error.message)
   return (data ?? []) as Store[]
@@ -79,9 +81,10 @@ export async function updateStore(
       email: input.email ?? undefined,
       description: input.description ?? undefined,
       is_primary: input.is_primary,
+      pos_discount_enabled: input.pos_discount_enabled,
     })
     .eq('id', id)
-    .select('id, company_id, name, code, address, logo_url, phone, email, description, is_active, is_primary, created_at')
+    .select('id, company_id, name, code, address, logo_url, phone, email, description, is_active, is_primary, pos_discount_enabled, created_at')
     .single()
   if (error) throw new Error(error.message)
   return data as Store

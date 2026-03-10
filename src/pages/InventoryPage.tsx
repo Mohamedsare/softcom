@@ -322,6 +322,9 @@ export function InventoryPage() {
               Historique mouvements
             </button>
           </div>
+          <p className="text-sm text-[var(--text-muted)] mt-2">
+            Inventaire physique : cliquez sur l’icône <Edit3 className="inline h-4 w-4 mx-0.5" /> d’un produit, onglet <strong>Inventaire</strong>, puis saisissez la quantité comptée.
+          </p>
 
           {!showMovements ? (
             isLoading ? (

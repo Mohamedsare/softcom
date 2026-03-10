@@ -27,11 +27,16 @@ interface CartItem {
 
 interface ReceiptDialogData {
   storeName: string
+  storeAddress?: string | null
+  storePhone?: string | null
   saleNumber: string
   items: { name: string; quantity: number; unitPrice: number; total: number }[]
   subtotal: number
   discount: number
   total: number
+  paymentMethod: string
+  amountReceived?: number
+  change?: number
 }
 
 export function PosPage() {
@@ -43,6 +48,7 @@ export function PosPage() {
   const [search, setSearch] = useState('')
   const [customerId, setCustomerId] = useState<string>('')
   const [discount, setDiscount] = useState(0)
+  const [amountReceived, setAmountReceived] = useState<number | ''>('')
   const [receiptDialog, setReceiptDialog] = useState<ReceiptDialogData | null>(null)
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false)
   const receiptSnapshotRef = useRef<Omit<ReceiptDialogData, 'saleNumber'> | null>(null) as MutableRefObject<Omit<ReceiptDialogData, 'saleNumber'> | null>
@@ -83,6 +89,7 @@ export function PosPage() {
       }
       setCart([])
       setDiscount(0)
+      setAmountReceived('')
       setCustomerId('')
       toast.success(`Vente #${sale.sale_number} enregistrée. Total: ${formatCurrency(sale.total)}`)
     },
@@ -160,12 +167,19 @@ export function PosPage() {
       toast.error('Stock insuffisant pour certains articles')
       return
     }
+    const received = typeof amountReceived === 'number' ? amountReceived : 0
+    const change = received >= total ? received - total : undefined
     receiptSnapshotRef.current = {
       storeName: currentStore?.name ?? 'Boutique',
+      storeAddress: currentStore?.address ?? null,
+      storePhone: currentStore?.phone ?? null,
       items: cart.map((c) => ({ name: c.name, quantity: c.quantity, unitPrice: c.unitPrice, total: c.total })),
       subtotal,
       discount,
       total,
+      paymentMethod: 'Espèces',
+      amountReceived: received > 0 ? received : undefined,
+      change,
     }
     createMutation.mutate({
       company_id: currentCompanyId,
@@ -239,21 +253,53 @@ export function PosPage() {
           </ul>
         )}
       </div>
-      <div className="border-t border-[var(--border-solid)] p-4 space-y-3 shrink-0">
+      <div className="border-t border-[var(--border-solid)] p-3 space-y-2 shrink-0">
         {cart.length > 0 && (
-          <div>
-            <Label htmlFor="discount-pos" className="text-sm">Remise (XOF)</Label>
-            <Input
-              id="discount-pos"
-              type="number"
-              min={0}
-              step={1}
-              value={discount || ''}
-              onChange={(e) => setDiscount(Math.max(0, parseFloat(e.target.value) || 0))}
-              placeholder="0"
-              className="mt-1"
-            />
-          </div>
+          <>
+            <div className={currentStore?.pos_discount_enabled ? 'grid grid-cols-2 gap-2' : 'space-y-2'}>
+              {currentStore?.pos_discount_enabled && (
+                <div>
+                  <Label htmlFor="discount-pos" className="text-xs">Remise</Label>
+                  <Input
+                    id="discount-pos"
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={discount || ''}
+                    onChange={(e) => setDiscount(Math.max(0, parseFloat(e.target.value) || 0))}
+                    placeholder="0"
+                    className="mt-0.5 min-h-[36px] py-1.5 text-sm"
+                  />
+                </div>
+              )}
+              <div>
+                <Label htmlFor="amount-received-pos" className="text-xs">Montant reçu</Label>
+                <Input
+                  id="amount-received-pos"
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={amountReceived === '' ? '' : amountReceived}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    setAmountReceived(v === '' ? '' : Math.max(0, parseFloat(v) || 0))
+                  }}
+                  placeholder={total > 0 ? formatCurrency(total) : '0'}
+                  className="mt-0.5 min-h-[36px] py-1.5 text-sm"
+                />
+              </div>
+            </div>
+            {amountReceived !== '' && (
+              <div className="flex justify-between text-sm font-medium">
+                <span className="text-[var(--text-secondary)]">Monnaie à rendre</span>
+                <span className={typeof amountReceived === 'number' && amountReceived >= total ? 'text-[var(--accent)] tabular-nums' : 'text-[var(--danger)] tabular-nums'}>
+                  {typeof amountReceived === 'number' && amountReceived >= total
+                    ? formatCurrency(amountReceived - total)
+                    : 'Insuffisant'}
+                </span>
+              </div>
+            )}
+          </>
         )}
         <div className="flex justify-between text-lg font-semibold">
           <span>Total</span>
@@ -401,11 +447,16 @@ export function PosPage() {
           <div className="bg-[var(--card-bg)] rounded-xl shadow-xl max-w-[90vw] flex flex-col items-center gap-4 print:bg-white print:shadow-none">
             <ReceiptTicket
               storeName={receiptDialog.storeName}
+              storeAddress={receiptDialog.storeAddress}
+              storePhone={receiptDialog.storePhone}
               saleNumber={receiptDialog.saleNumber}
               items={receiptDialog.items}
               subtotal={receiptDialog.subtotal}
               discount={receiptDialog.discount}
               total={receiptDialog.total}
+              paymentMethod={receiptDialog.paymentMethod}
+              amountReceived={receiptDialog.amountReceived}
+              change={receiptDialog.change}
               widthMm={getReceiptWidth()}
             />
             <div className="flex gap-2 no-print">
