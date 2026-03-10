@@ -99,6 +99,8 @@ export interface CsvProductRow {
   purchase_price: number
   sale_price: number
   stock_min: number
+  /** Quantité entrante (stock initial) pour la boutique choisie à l'import. */
+  stock_entrant?: number
   description: string | null
   is_active: boolean
   category: string | null
@@ -118,6 +120,8 @@ const HEADER_MAP: Record<string, keyof CsvProductRow> = {
   prix_vente: 'sale_price',
   sale_price: 'sale_price',
   stock_min: 'stock_min',
+  stock_entrant: 'stock_entrant',
+  quantite_entrante: 'stock_entrant',
   description: 'description',
   actif: 'is_active',
   is_active: 'is_active',
@@ -161,6 +165,7 @@ export function parseProductsCsv(text: string): CsvProductRow[] {
       purchase_price: num(colIndex.purchase_price) ?? 0,
       sale_price: num(colIndex.sale_price) ?? 0,
       stock_min: num(colIndex.stock_min) ?? 0,
+      stock_entrant: num(colIndex.stock_entrant) ?? 0,
       description: (row[colIndex.description ?? -1] ?? '').trim() || null,
       is_active: boolVal(colIndex.is_active),
       category: (row[colIndex.category ?? -1] ?? '').trim() || null,

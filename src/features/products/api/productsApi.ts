@@ -273,18 +273,22 @@ export const productsApi = {
       purchase_price?: number
       sale_price?: number
       stock_min?: number
+      stock_entrant?: number
       description?: string | null
       is_active?: boolean
       category?: string | null
       brand?: string | null
-    }>
+    }>,
+    options?: { storeId?: string; userId?: string }
   ): Promise<{ created: number; errors: string[] }> {
+    const { storeId, userId } = options ?? {}
     const existingCats = await this.categories(companyId)
     const existingBrands = await this.brands(companyId)
     const catMap = new Map<string, string>(existingCats.map((c) => [c.name.toLowerCase(), c.id]))
     const brandMap = new Map<string, string>(existingBrands.map((b) => [b.name.toLowerCase(), b.id]))
     let created = 0
     const errors: string[] = []
+    const { inventoryApi } = await import('@/features/inventory/api/inventoryApi')
     for (let i = 0; i < rows.length; i++) {
       const r = rows[i]
       try {
@@ -308,7 +312,7 @@ export const productsApi = {
             brandId = b.id
           }
         }
-        await this.create({
+        const p = await this.create({
           company_id: companyId,
           name: r.name,
           sku: r.sku ?? undefined,
@@ -322,6 +326,10 @@ export const productsApi = {
           category_id: catId ?? undefined,
           brand_id: brandId ?? undefined,
         })
+        const qty = Number(r.stock_entrant) || 0
+        if (qty > 0 && storeId && userId) {
+          await inventoryApi.adjust(storeId, p.id, qty, 'Stock entrant (import)', userId)
+        }
         created++
       } catch (e) {
         errors.push(`Ligne ${i + 2}: ${e instanceof Error ? e.message : String(e)}`)

@@ -319,6 +319,7 @@ export function ProductsPage() {
       {currentCompanyId && showImportCsv && (
         <ImportProductsCSVDialog
           companyId={currentCompanyId}
+          currentStoreId={currentStoreId ?? undefined}
           open={showImportCsv}
           onClose={() => setShowImportCsv(false)}
           onSuccess={() => queryClient.invalidateQueries({ queryKey: ['products', currentCompanyId] })}

@@ -3,12 +3,15 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import * as Dialog from '@radix-ui/react-dialog'
 import { Button } from '@/components/ui'
 import { Upload, FileText } from 'lucide-react'
+import { useAuth } from '@/context/AuthContext'
 import { productsApi } from '../api/productsApi'
 import { parseProductsCsv } from '../utils/productsCsv'
 import { toast } from 'sonner'
 
 interface ImportProductsCSVDialogProps {
   companyId: string
+  /** Boutique pour laquelle le stock entrant (colonne stock_entrant) sera enregistré. */
+  currentStoreId?: string
   open: boolean
   onClose: () => void
   onSuccess: () => void
@@ -16,20 +19,26 @@ interface ImportProductsCSVDialogProps {
 
 export function ImportProductsCSVDialog({
   companyId,
+  currentStoreId,
   open,
   onClose,
   onSuccess,
 }: ImportProductsCSVDialogProps) {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
   const fileRef = useRef<HTMLInputElement>(null)
   const [file, setFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<{ count: number; errors: string[] } | null>(null)
 
   const importMutation = useMutation({
     mutationFn: (rows: ReturnType<typeof parseProductsCsv>) =>
-      productsApi.importFromCsv(companyId, rows),
+      productsApi.importFromCsv(companyId, rows, {
+        storeId: currentStoreId,
+        userId: user?.id,
+      }),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['products', companyId] })
+      if (currentStoreId) queryClient.invalidateQueries({ queryKey: ['inventory', currentStoreId] })
       if (result.created > 0) {
         toast.success(`${result.created} produit(s) importé(s)`)
         onSuccess()
@@ -87,7 +96,7 @@ export function ImportProductsCSVDialog({
             Importer des produits (CSV)
           </Dialog.Title>
           <p className="mt-2 text-sm text-[var(--text-muted)]">
-            Colonnes acceptées : nom, sku, code_barres, unite, prix_achat, prix_vente, stock_min, description, actif (1/0), categorie, marque
+            Colonnes acceptées : nom, sku, code_barres, unite, prix_achat, prix_vente, stock_min, stock_entrant, description, actif (1/0), categorie, marque. Le stock_entrant est enregistré pour la boutique sélectionnée.
           </p>
           <div className="mt-4 space-y-4">
             <input
