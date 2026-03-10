@@ -64,7 +64,6 @@ export function EditStoreDialog({ store, open, onClose, onSuccess }: EditStoreDi
     if (open && store) {
       reset({
         name: store.name,
-        code: store.code ?? '',
         address: store.address ?? '',
         phone: store.phone ?? '',
         email: store.email ?? '',
