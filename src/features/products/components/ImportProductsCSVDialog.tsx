@@ -36,10 +36,14 @@ export function ImportProductsCSVDialog({
         storeId: currentStoreId,
         userId: user?.id,
       }),
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ['products', companyId] })
-      if (currentStoreId) queryClient.invalidateQueries({ queryKey: ['inventory', currentStoreId] })
+    onSuccess: async (result) => {
       if (result.created > 0) {
+        await Promise.all([
+          queryClient.refetchQueries({ queryKey: ['products', companyId] }),
+          currentStoreId
+            ? queryClient.refetchQueries({ queryKey: ['inventory', currentStoreId] })
+            : Promise.resolve(),
+        ])
         toast.success(`${result.created} produit(s) importé(s)`)
         onSuccess()
         onClose()
