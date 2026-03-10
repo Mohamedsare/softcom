@@ -7,6 +7,7 @@ import { ROUTES } from '@/routes'
 import { Button, Input, Label } from '@/components/ui'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
+import { translateErrorMessage } from '@/lib/errorMessages'
 
 const schema = z
   .object({
@@ -40,7 +41,7 @@ export function ResetPasswordPage() {
       toast.success('Mot de passe mis à jour. Connectez-vous.')
     } catch (e) {
       console.error(e)
-      toast.error(e instanceof Error ? e.message : 'Erreur')
+      toast.error(e instanceof Error ? translateErrorMessage(e.message) : 'Une erreur s’est produite.')
     }
   }
 

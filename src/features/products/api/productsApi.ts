@@ -112,7 +112,7 @@ export const productsApi = {
         unit: input.unit ?? 'pce',
         purchase_price: input.purchase_price ?? 0,
         sale_price: input.sale_price ?? 0,
-        min_price: input.min_price ?? null,
+        min_price: null,
         stock_min: input.stock_min ?? 0,
         description: input.description || null,
         is_active: input.is_active ?? true,
@@ -135,7 +135,7 @@ export const productsApi = {
         unit: input.unit,
         purchase_price: input.purchase_price,
         sale_price: input.sale_price,
-        min_price: input.min_price ?? undefined,
+        min_price: null,
         stock_min: input.stock_min,
         description: input.description ?? undefined,
         is_active: input.is_active,
@@ -272,7 +272,6 @@ export const productsApi = {
       unit?: string
       purchase_price?: number
       sale_price?: number
-      min_price?: number | null
       stock_min?: number
       description?: string | null
       is_active?: boolean
@@ -317,7 +316,6 @@ export const productsApi = {
           unit: r.unit ?? 'pce',
           purchase_price: r.purchase_price ?? 0,
           sale_price: r.sale_price ?? 0,
-          min_price: r.min_price ?? undefined,
           stock_min: r.stock_min ?? 0,
           description: r.description ?? undefined,
           is_active: r.is_active ?? true,

@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { registerCompany } from '../api/authService'
 import { ROUTES } from '@/routes'
+import { translateErrorMessage } from '@/lib/errorMessages'
 
 function slugFromName(name: string): string {
   if (!name.trim()) return ''
@@ -66,7 +67,7 @@ export function RegisterCompanyForm() {
       })
       navigate(ROUTES.login, { state: { message: 'Compte créé. Connectez-vous.' } })
     } catch (e) {
-      setSubmitError(e instanceof Error ? e.message : 'Erreur lors de l’inscription')
+      setSubmitError(e instanceof Error ? translateErrorMessage(e.message) : 'Erreur lors de l’inscription.')
     }
   }
 

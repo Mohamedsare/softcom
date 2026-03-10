@@ -9,6 +9,7 @@ import {
   setCompanyMemberActive,
 } from '@/features/users/api/usersApi'
 import { supabase } from '@/lib/supabase'
+import { translateErrorMessage } from '@/lib/errorMessages'
 import { UserPlus, UserCheck, UserX, X, KeyRound } from 'lucide-react'
 import { toast } from 'sonner'
 import { useState } from 'react'
@@ -71,9 +72,9 @@ function UsersList() {
             'Impossible de joindre le serveur (Edge Function). Déployez la fonction "create-company-user" sur votre projet Supabase : supabase functions deploy create-company-user'
           )
         }
-        throw new Error(bodyMsg || msg)
+        throw new Error(translateErrorMessage(bodyMsg || msg))
       }
-      if (data?.error) throw new Error(data.error)
+      if (data?.error) throw new Error(translateErrorMessage(data.error))
       return data
     },
     onSuccess: () => {
@@ -86,7 +87,7 @@ function UsersList() {
       setCreateRoleSlug('')
       setCreateStoreIds([])
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : 'Erreur'),
+    onError: (e) => toast.error(translateErrorMessage(e instanceof Error ? e.message : undefined)),
   })
 
   const resetPasswordMutation = useMutation({
@@ -113,9 +114,9 @@ function UsersList() {
         if (bodyMsg === 'Unauthorized' || bodyMsg === 'Invalid token') {
           throw new Error('Session expirée ou invalide. Déconnectez-vous puis reconnectez-vous.')
         }
-        throw new Error(bodyMsg || error.message)
+        throw new Error(translateErrorMessage(bodyMsg || error.message))
       }
-      if (data?.error) throw new Error(data.error)
+      if (data?.error) throw new Error(translateErrorMessage(data.error))
       return data
     },
     onSuccess: () => {
@@ -124,7 +125,7 @@ function UsersList() {
       setResetPasswordValue('')
       setResetPasswordConfirm('')
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : 'Erreur'),
+    onError: (e) => toast.error(translateErrorMessage(e instanceof Error ? e.message : undefined)),
   })
 
   const toggleActiveMutation = useMutation({
@@ -134,7 +135,7 @@ function UsersList() {
       queryClient.invalidateQueries({ queryKey: ['company-members', currentCompanyId] })
       toast.success(isActive ? 'Utilisateur activé' : 'Utilisateur désactivé')
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : 'Erreur'),
+    onError: (e) => toast.error(translateErrorMessage(e instanceof Error ? e.message : undefined)),
   })
 
   if (!currentCompanyId) return null

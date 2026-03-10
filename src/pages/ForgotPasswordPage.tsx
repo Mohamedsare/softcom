@@ -7,6 +7,7 @@ import { ROUTES } from '@/routes'
 import { Button, Input, Label } from '@/components/ui'
 import { resetPasswordForEmail } from '@/features/auth/api/authService'
 import { toast } from 'sonner'
+import { translateErrorMessage } from '@/lib/errorMessages'
 
 const schema = z.object({
   email: z.string().email('Email invalide'),
@@ -27,9 +28,11 @@ export function ForgotPasswordPage() {
     try {
       await resetPasswordForEmail(data.email)
       setSent(true)
-      toast.success('Email envoyé. Vérifiez votre boîte de réception.')
+      // Message neutre : on n'indique pas qu'un email a été envoyé, car aucun email
+      // n'est envoyé si le compte n'existe pas (Supabase ne révèle pas si l'email existe).
+      toast.success('Si un compte existe pour cet email, vous recevrez un lien.')
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Erreur')
+      toast.error(e instanceof Error ? translateErrorMessage(e.message) : 'Une erreur s’est produite.')
     }
   }
 
@@ -37,9 +40,9 @@ export function ForgotPasswordPage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[var(--bg-primary)] p-4">
         <div className="w-full max-w-sm rounded-2xl border border-[var(--border-solid)] bg-[var(--card-bg)] p-6 shadow-sm">
-          <h1 className="mb-2 text-xl font-bold text-[var(--text-primary)]">Email envoyé</h1>
+          <h1 className="mb-2 text-xl font-bold text-[var(--text-primary)]">Demande envoyée</h1>
           <p className="mb-6 text-sm text-[var(--text-muted)]">
-            Un lien de réinitialisation a été envoyé. Vérifiez votre boîte de réception et suivez le lien.
+            Si un compte est associé à cet email, un lien de réinitialisation lui a été envoyé. Vérifiez votre boîte de réception (et les spams).
           </p>
           <Link
             to={ROUTES.login}

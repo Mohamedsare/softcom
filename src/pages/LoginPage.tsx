@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { ROUTES } from '@/routes'
 import { supabase } from '@/lib/supabase'
+import { translateErrorMessage } from '@/lib/errorMessages'
 
 export function LoginPage() {
   const [email, setEmail] = useState('')
@@ -21,7 +22,7 @@ export function LoginPage() {
     try {
       const { error: err } = await supabase.auth.signInWithPassword({ email, password })
       if (err) {
-        setError(err.message)
+        setError(translateErrorMessage(err.message, (err as { code?: string }).code))
         return
       }
       const profile = await refreshProfile()

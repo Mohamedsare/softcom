@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Button, Card, Input, Label } from '@/components/ui'
 import { ROUTES } from '@/routes'
+import { translateErrorMessage } from '@/lib/errorMessages'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -59,7 +60,7 @@ export function CreateSuperAdminPage() {
       setPassword('')
       setFullName('')
     } catch (err) {
-      setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Erreur réseau.' })
+      setMessage({ type: 'error', text: err instanceof Error ? translateErrorMessage(err.message) : 'Erreur réseau.' })
     } finally {
       setLoading(false)
     }

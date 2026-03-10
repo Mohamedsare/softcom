@@ -18,7 +18,6 @@ export function productsToCsv(products: Product[]): string {
     'unite',
     'prix_achat',
     'prix_vente',
-    'prix_min',
     'stock_min',
     'description',
     'actif',
@@ -32,7 +31,6 @@ export function productsToCsv(products: Product[]): string {
     escapeCsvValue(p.unit),
     String(p.purchase_price),
     String(p.sale_price),
-    p.min_price != null ? String(p.min_price) : '',
     String(p.stock_min),
     escapeCsvValue(p.description ?? ''),
     p.is_active ? '1' : '0',
@@ -100,7 +98,6 @@ export interface CsvProductRow {
   unit: string
   purchase_price: number
   sale_price: number
-  min_price: number | null
   stock_min: number
   description: string | null
   is_active: boolean
@@ -120,8 +117,6 @@ const HEADER_MAP: Record<string, keyof CsvProductRow> = {
   purchase_price: 'purchase_price',
   prix_vente: 'sale_price',
   sale_price: 'sale_price',
-  prix_min: 'min_price',
-  min_price: 'min_price',
   stock_min: 'stock_min',
   description: 'description',
   actif: 'is_active',
@@ -165,7 +160,6 @@ export function parseProductsCsv(text: string): CsvProductRow[] {
       unit: (row[colIndex.unit ?? -1] ?? 'pce').trim() || 'pce',
       purchase_price: num(colIndex.purchase_price) ?? 0,
       sale_price: num(colIndex.sale_price) ?? 0,
-      min_price: num(colIndex.min_price),
       stock_min: num(colIndex.stock_min) ?? 0,
       description: (row[colIndex.description ?? -1] ?? '').trim() || null,
       is_active: boolVal(colIndex.is_active),

@@ -87,7 +87,7 @@ export function ImportProductsCSVDialog({
             Importer des produits (CSV)
           </Dialog.Title>
           <p className="mt-2 text-sm text-[var(--text-muted)]">
-            Colonnes acceptées : nom, sku, code_barres, unite, prix_achat, prix_vente, prix_min, stock_min, description, actif (1/0), categorie, marque
+            Colonnes acceptées : nom, sku, code_barres, unite, prix_achat, prix_vente, stock_min, description, actif (1/0), categorie, marque
           </p>
           <div className="mt-4 space-y-4">
             <input

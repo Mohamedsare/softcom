@@ -327,6 +327,7 @@ export function ProductsPage() {
       {currentCompanyId && (
         <ProductFormDialog
           companyId={currentCompanyId}
+          currentStoreId={currentStoreId ?? undefined}
           open={showCreate || !!editingId}
           onClose={() => { setShowCreate(false); setEditingId(null) }}
           onSuccess={handleSuccess}

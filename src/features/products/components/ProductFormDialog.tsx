@@ -6,6 +6,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import * as Dialog from '@radix-ui/react-dialog'
 import { Button, Input, Label } from '@/components/ui'
 import { productsApi } from '../api/productsApi'
+import { inventoryApi } from '@/features/inventory/api/inventoryApi'
+import { useAuth } from '@/context/AuthContext'
 import { X, Plus, Camera } from 'lucide-react'
 import type { ProductImage } from '../api/productsApi'
 
@@ -14,10 +16,10 @@ const schema = z.object({
   sku: z.string().optional(),
   barcode: z.string().optional(),
   unit: z.string().min(1, 'Unité requise'),
-  purchase_price: z.number().min(0, 'Prix >= 0'),
+  purchase_price: z.number().min(0, 'Prix >= 0').optional(),
   sale_price: z.number().min(0, 'Prix >= 0'),
-  min_price: z.number().min(0).nullable(),
   stock_min: z.number().min(0, 'Stock min >= 0'),
+  initial_stock_quantity: z.number().min(0, 'Quantité >= 0').optional(),
   description: z.string().optional(),
   is_active: z.boolean(),
   category_id: z.string().optional(),
@@ -28,6 +30,8 @@ type FormData = z.infer<typeof schema>
 
 interface ProductFormDialogProps {
   companyId: string
+  /** Boutique courante : si fournie, le "Stock entrant" à la création sera enregistré pour cette boutique. */
+  currentStoreId?: string
   open: boolean
   onClose: () => void
   onSuccess: () => void
@@ -38,12 +42,14 @@ const UNITS = ['pce', 'kg', 'L', 'm', 'm²', 'lot', 'paquet', 'carton', 'boîte'
 
 export function ProductFormDialog({
   companyId,
+  currentStoreId,
   open,
   onClose,
   onSuccess,
   productId,
 }: ProductFormDialogProps) {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [newCategoryName, setNewCategoryName] = useState('')
   const [newBrandName, setNewBrandName] = useState('')
@@ -74,8 +80,8 @@ export function ProductFormDialog({
       unit: 'pce',
       purchase_price: 0,
       sale_price: 0,
-      min_price: null,
       stock_min: 5,
+      initial_stock_quantity: 0,
       is_active: true,
     },
   })
@@ -91,8 +97,8 @@ export function ProductFormDialog({
             unit: p.unit,
             purchase_price: p.purchase_price,
             sale_price: p.sale_price,
-            min_price: p.min_price ?? null,
             stock_min: p.stock_min,
+            initial_stock_quantity: 0,
             description: p.description ?? '',
             is_active: p.is_active,
             category_id: p.category_id ?? '',
@@ -110,8 +116,8 @@ export function ProductFormDialog({
         unit: 'pce',
         purchase_price: 0,
         sale_price: 0,
-        min_price: null,
         stock_min: 5,
+        initial_stock_quantity: 0,
         description: '',
         is_active: true,
         category_id: '',
@@ -177,9 +183,8 @@ export function ProductFormDialog({
           sku: data.sku || undefined,
           barcode: data.barcode || undefined,
           unit: data.unit,
-          purchase_price: data.purchase_price,
+          purchase_price: data.purchase_price ?? 0,
           sale_price: data.sale_price,
-          min_price: data.min_price ?? undefined,
           stock_min: data.stock_min,
           description: data.description || undefined,
           is_active: data.is_active,
@@ -187,15 +192,19 @@ export function ProductFormDialog({
           brand_id: data.brand_id || undefined,
         })
         id = p.id
+        const qty = Number(data.initial_stock_quantity) || 0
+        if (qty > 0 && currentStoreId && user?.id) {
+          await inventoryApi.adjust(currentStoreId, id, qty, 'Stock entrant', user.id)
+          queryClient.invalidateQueries({ queryKey: ['inventory', currentStoreId] })
+        }
       } else {
         await productsApi.update(id, {
           name: data.name,
           sku: data.sku || undefined,
           barcode: data.barcode || undefined,
           unit: data.unit,
-          purchase_price: data.purchase_price,
+          purchase_price: data.purchase_price ?? 0,
           sale_price: data.sale_price,
-          min_price: data.min_price ?? undefined,
           stock_min: data.stock_min,
           description: data.description || undefined,
           is_active: data.is_active,
@@ -303,19 +312,22 @@ export function ProductFormDialog({
                 ))}
               </select>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="purchase_price" className="mb-2 block">Prix d'achat</Label>
                 <Input
                   id="purchase_price"
                   type="number"
                   step="0.01"
+                  min={0}
+                  placeholder="0"
                   {...register('purchase_price', { valueAsNumber: true })}
                   error={errors.purchase_price?.message}
                 />
+                <p className="mt-1 text-xs text-[var(--text-muted)]">Recommandé pour les rapports et la marge.</p>
               </div>
               <div>
-                <Label htmlFor="sale_price" className="mb-2 block">Prix de vente</Label>
+                <Label htmlFor="sale_price" className="mb-2 block">Prix de vente *</Label>
                 <Input
                   id="sale_price"
                   type="number"
@@ -324,27 +336,34 @@ export function ProductFormDialog({
                   error={errors.sale_price?.message}
                 />
               </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="min_price" className="mb-2 block">Prix min.</Label>
+                <Label htmlFor="stock_min" className="mb-2 block">Stock minimum</Label>
                 <Input
-                  id="min_price"
+                  id="stock_min"
                   type="number"
-                  step="0.01"
-                  placeholder="—"
-                  {...register('min_price', {
-                    setValueAs: (v) => (v === '' || v === undefined ? null : parseFloat(v)),
-                  })}
+                  min={0}
+                  {...register('stock_min', { valueAsNumber: true })}
+                  error={errors.stock_min?.message}
                 />
               </div>
-            </div>
-            <div>
-              <Label htmlFor="stock_min" className="mb-2 block">Stock minimum</Label>
-              <Input
-                id="stock_min"
-                type="number"
-                {...register('stock_min', { valueAsNumber: true })}
-                error={errors.stock_min?.message}
-              />
+              {!productId && (
+                <div>
+                  <Label htmlFor="initial_stock_quantity" className="mb-2 block">Stock entrant</Label>
+                  <Input
+                    id="initial_stock_quantity"
+                    type="number"
+                    min={0}
+                    placeholder="0"
+                    {...register('initial_stock_quantity', { valueAsNumber: true })}
+                    error={errors.initial_stock_quantity?.message}
+                  />
+                  <p className="mt-1 text-xs text-[var(--text-muted)]">
+                    {currentStoreId ? 'Quantité en stock pour la boutique sélectionnée.' : 'Choisissez une boutique pour enregistrer un stock initial.'}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Catégorie */}
