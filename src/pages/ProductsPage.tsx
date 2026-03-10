@@ -9,13 +9,16 @@ import { CategoriesSection } from '@/features/products/components/CategoriesSect
 import { BrandsSection } from '@/features/products/components/BrandsSection'
 import { ImportProductsCSVDialog } from '@/features/products/components/ImportProductsCSVDialog'
 import { productsToCsv, downloadCsv } from '@/features/products/utils/productsCsv'
+import { inventoryApi } from '@/features/inventory/api/inventoryApi'
+import { companySettingsApi } from '@/features/settings/api/companySettingsApi'
+import { StockRangeSlider } from '@/features/inventory/components/StockRangeSlider'
 import { formatCurrency } from '@/lib/utils'
 import { toast } from 'sonner'
 
 type Tab = 'products' | 'categories' | 'brands'
 
 export function ProductsPage() {
-  const { currentCompanyId } = useCompany()
+  const { currentCompanyId, currentStoreId } = useCompany()
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState<Tab>('products')
   const [showCreate, setShowCreate] = useState(false)
@@ -41,6 +44,18 @@ export function ProductsPage() {
     queryKey: ['brands', currentCompanyId],
     queryFn: () => productsApi.brands(currentCompanyId!),
     enabled: !!currentCompanyId,
+  })
+
+  const { data: stockByStore = {} } = useQuery({
+    queryKey: ['inventory', currentStoreId],
+    queryFn: () => inventoryApi.getStockByStore(currentStoreId!),
+    enabled: !!currentStoreId && activeTab === 'products',
+  })
+
+  const { data: defaultStockThreshold = 5 } = useQuery({
+    queryKey: ['company-settings', 'default_stock_alert', currentCompanyId],
+    queryFn: () => companySettingsApi.getDefaultStockAlertThreshold(currentCompanyId!),
+    enabled: !!currentCompanyId && activeTab === 'products' && !!currentStoreId,
   })
 
   const setActiveMutation = useMutation({
@@ -204,6 +219,9 @@ export function ProductsPage() {
                       <th className="p-4 font-medium text-[var(--text-primary)]">Produit</th>
                       <th className="hidden p-4 font-medium text-[var(--text-primary)] sm:table-cell">SKU</th>
                       <th className="p-4 font-medium text-[var(--text-primary)]">Prix</th>
+                      {currentStoreId && (
+                        <th className="p-4 font-medium text-[var(--text-primary)]">Stock</th>
+                      )}
                       <th className="hidden p-4 font-medium text-[var(--text-primary)] md:table-cell">Catégorie</th>
                       <th className="hidden p-4 font-medium text-[var(--text-primary)] lg:table-cell">Marque</th>
                       <th className="p-4 font-medium text-[var(--text-primary)]">État</th>
@@ -233,6 +251,14 @@ export function ProductsPage() {
                         </td>
                         <td className="hidden p-4 sm:table-cell">{p.sku ?? '—'}</td>
                         <td className="p-4">{formatCurrency(p.sale_price)}</td>
+                        {currentStoreId && (
+                          <td className="p-4">
+                            <StockRangeSlider
+                              quantity={stockByStore[p.id] ?? 0}
+                              alertThreshold={(p.stock_min ?? 0) > 0 ? p.stock_min! : defaultStockThreshold}
+                            />
+                          </td>
+                        )}
                         <td className="hidden p-4 md:table-cell">{p.category?.name ?? '—'}</td>
                         <td className="hidden p-4 lg:table-cell">{p.brand?.name ?? '—'}</td>
                         <td className="p-4">

@@ -63,14 +63,20 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
       .eq('user_id', user.id)
       .eq('is_active', true)
     if (rolesError || !roles?.length) {
+      if (rolesError) {
+        console.error('[CompanyContext] user_company_roles:', rolesError.message, rolesError.code, rolesError.details)
+      }
       setState((s) => ({ ...s, companies: [], currentCompanyId: null, stores: [], currentStoreId: null, loading: false }))
       return
     }
     const companyIds = [...new Set((roles as { company_id: string }[]).map((r) => r.company_id))]
-    const { data: companiesData } = await supabase
+    const { data: companiesData, error: companiesError } = await supabase
       .from('companies')
       .select('id, name, slug, is_active, store_quota, ai_predictions_enabled')
       .in('id', companyIds)
+    if (companiesError) {
+      console.error('[CompanyContext] companies:', companiesError.message, companiesError.code, companiesError.details)
+    }
     const companies = (companiesData ?? []) as Company[]
     setState((s) => ({
       ...s,
@@ -85,11 +91,14 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
       setState((s) => ({ ...s, stores: [], currentStoreId: null }))
       return
     }
-    const { data } = await supabase
+    const { data, error: storesError } = await supabase
       .from('stores')
       .select('id, company_id, name, code, address, logo_url, phone, email, description, is_active, is_primary')
       .eq('company_id', state.currentCompanyId)
       .eq('is_active', true)
+    if (storesError) {
+      console.error('[CompanyContext] stores:', storesError.message, storesError.code, storesError.details)
+    }
     const stores = (data ?? []) as Store[]
     setState((s) => ({
       ...s,

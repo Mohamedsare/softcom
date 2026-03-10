@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { useCompany } from '@/context/CompanyContext'
+import { usePermissions } from '@/hooks/usePermissions'
+import { PERMISSIONS } from '@/constants/permissions'
 import { ROUTES } from '@/routes'
 import { AdminSidebar } from '@/components/layout/AdminSidebar'
 import {
@@ -17,8 +19,10 @@ import {
   TrendingUp,
   Truck,
   UserCircle,
+  Users,
   MoreHorizontal,
   Sparkles,
+  RefreshCw,
 } from 'lucide-react'
 
 const sidebarWidth = 240
@@ -30,14 +34,15 @@ const mobilePrimaryItems = [
   { to: ROUTES.sales, label: 'Ventes', icon: ShoppingCart },
 ]
 
-const mobileMoreItems = [
-  { to: ROUTES.reports, label: 'Rapports', icon: TrendingUp },
-  { to: ROUTES.ai, label: 'Prédictions IA', icon: Sparkles },
+const mobileMoreItemsBase = [
+  { to: ROUTES.reports, label: 'Rapports', icon: TrendingUp, needReports: true },
+  { to: ROUTES.ai, label: 'Prédictions IA', icon: Sparkles, needAi: true },
   { to: ROUTES.inventory, label: 'Stock', icon: BarChart3 },
   { to: ROUTES.customers, label: 'Clients', icon: UserCircle },
   { to: ROUTES.purchases, label: 'Achats', icon: Truck },
   { to: ROUTES.stores, label: 'Boutiques', icon: Store },
-  { to: ROUTES.settings, label: 'Paramètres', icon: Settings },
+  { to: ROUTES.users, label: 'Utilisateurs', icon: Users, needUsers: true },
+  { to: ROUTES.settings, label: 'Paramètres', icon: Settings, needSettings: true },
 ]
 
 export function AppShell() {
@@ -45,9 +50,23 @@ export function AppShell() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [plusMenuOpen, setPlusMenuOpen] = useState(false)
   const { user, profile, signOut } = useAuth()
-  const { currentCompanyId, companies, currentStoreId, stores, setCurrentCompanyId, setCurrentStoreId } = useCompany()
+  const { currentCompanyId, companies, currentStoreId, stores, setCurrentCompanyId, setCurrentStoreId, refreshCompanies, refreshStores } = useCompany()
+  const { hasPermission } = usePermissions()
   const navigate = useNavigate()
   const location = useLocation()
+
+  const canUsers = hasPermission(PERMISSIONS.users_manage)
+  const canSettings = hasPermission(PERMISSIONS.settings_manage)
+  const canReports = hasPermission(PERMISSIONS.reports_view_global) || hasPermission(PERMISSIONS.reports_view_store)
+  const canAi = hasPermission(PERMISSIONS.ai_insights_view)
+
+  const mobileMoreItems = mobileMoreItemsBase.filter(
+    (i) =>
+      (!('needReports' in i) || canReports) &&
+      (!('needAi' in i) || canAi) &&
+      (!('needUsers' in i) || canUsers) &&
+      (!('needSettings' in i) || canSettings)
+  )
 
   const handleSignOut = async () => {
     await signOut()
@@ -99,7 +118,18 @@ export function AppShell() {
       <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-2">
         {!collapsed && (
           <>
-            <div className="mb-2 px-2 py-1 text-xs font-medium text-[var(--text-muted)]">Entreprise</div>
+            <div className="mb-2 flex items-center justify-between gap-1">
+              <span className="px-2 py-1 text-xs font-medium text-[var(--text-muted)]">Entreprise</span>
+              <button
+                type="button"
+                onClick={() => { refreshCompanies(); setTimeout(() => refreshStores(), 300) }}
+                className="rounded p-1.5 text-[var(--text-muted)] hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-[var(--accent)] touch-manipulation"
+                title="Rafraîchir entreprise et boutiques"
+                aria-label="Rafraîchir"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </button>
+            </div>
             <select
               value={currentCompanyId ?? ''}
               onChange={(e) => setCurrentCompanyId(e.target.value || null)}
@@ -122,6 +152,11 @@ export function AppShell() {
                   ))}
                 </select>
               </>
+            )}
+            {currentCompanyId && stores.length === 0 && (
+              <p className="mb-2 px-2 text-xs text-amber-600 dark:text-amber-400">
+                Aucune boutique affichée. Vérifiez la page Boutiques ou rafraîchir (icône ci-dessus).
+              </p>
             )}
           </>
         )}
@@ -146,24 +181,28 @@ export function AppShell() {
           <BarChart3 className="h-5 w-5 shrink-0" />
           {!collapsed && <span>Stock</span>}
         </Link>
-        <Link
-          to={ROUTES.reports}
-          className={`flex items-center gap-3 rounded-xl px-3 py-2 min-h-[44px] transition-colors touch-manipulation ${
-            isActive(ROUTES.reports) ? 'bg-orange-500/10 text-[var(--accent)]' : 'text-[var(--text-secondary)] hover:bg-orange-500/10 hover:text-[var(--accent)]'
-          }`}
-        >
-          <TrendingUp className="h-5 w-5 shrink-0" />
-          {!collapsed && <span>Rapports</span>}
-        </Link>
-        <Link
-          to={ROUTES.ai}
-          className={`flex items-center gap-3 rounded-xl px-3 py-2 min-h-[44px] transition-colors touch-manipulation ${
-            isActive(ROUTES.ai) ? 'bg-orange-500/10 text-[var(--accent)]' : 'text-[var(--text-secondary)] hover:bg-orange-500/10 hover:text-[var(--accent)]'
-          }`}
-        >
-          <Sparkles className="h-5 w-5 shrink-0" />
-          {!collapsed && <span>Prédictions IA</span>}
-        </Link>
+        {canReports && (
+          <Link
+            to={ROUTES.reports}
+            className={`flex items-center gap-3 rounded-xl px-3 py-2 min-h-[44px] transition-colors touch-manipulation ${
+              isActive(ROUTES.reports) ? 'bg-orange-500/10 text-[var(--accent)]' : 'text-[var(--text-secondary)] hover:bg-orange-500/10 hover:text-[var(--accent)]'
+            }`}
+          >
+            <TrendingUp className="h-5 w-5 shrink-0" />
+            {!collapsed && <span>Rapports</span>}
+          </Link>
+        )}
+        {canAi && (
+          <Link
+            to={ROUTES.ai}
+            className={`flex items-center gap-3 rounded-xl px-3 py-2 min-h-[44px] transition-colors touch-manipulation ${
+              isActive(ROUTES.ai) ? 'bg-orange-500/10 text-[var(--accent)]' : 'text-[var(--text-secondary)] hover:bg-orange-500/10 hover:text-[var(--accent)]'
+            }`}
+          >
+            <Sparkles className="h-5 w-5 shrink-0" />
+            {!collapsed && <span>Prédictions IA</span>}
+          </Link>
+        )}
         <Link
           to={ROUTES.purchases}
           className={`flex items-center gap-3 rounded-xl px-3 py-2 min-h-[44px] transition-colors touch-manipulation ${
@@ -182,15 +221,28 @@ export function AppShell() {
           <Store className="h-5 w-5 shrink-0" />
           {!collapsed && <span>Boutiques</span>}
         </Link>
-        <Link
-          to={ROUTES.settings}
-          className={`mt-auto flex items-center gap-3 rounded-xl px-3 py-2 min-h-[44px] transition-colors touch-manipulation ${
-            isActive(ROUTES.settings) ? 'bg-orange-500/10 text-[var(--accent)]' : 'text-[var(--text-secondary)] hover:bg-orange-500/10 hover:text-[var(--accent)]'
-          }`}
-        >
-          <Settings className="h-5 w-5 shrink-0" />
-          {!collapsed && <span>Paramètres</span>}
-        </Link>
+        {canUsers && (
+          <Link
+            to={ROUTES.users}
+            className={`flex items-center gap-3 rounded-xl px-3 py-2 min-h-[44px] transition-colors touch-manipulation ${
+              isActive(ROUTES.users) ? 'bg-orange-500/10 text-[var(--accent)]' : 'text-[var(--text-secondary)] hover:bg-orange-500/10 hover:text-[var(--accent)]'
+            }`}
+          >
+            <Users className="h-5 w-5 shrink-0" />
+            {!collapsed && <span>Utilisateurs</span>}
+          </Link>
+        )}
+        {canSettings && (
+          <Link
+            to={ROUTES.settings}
+            className={`mt-auto flex items-center gap-3 rounded-xl px-3 py-2 min-h-[44px] transition-colors touch-manipulation ${
+              isActive(ROUTES.settings) ? 'bg-orange-500/10 text-[var(--accent)]' : 'text-[var(--text-secondary)] hover:bg-orange-500/10 hover:text-[var(--accent)]'
+            }`}
+          >
+            <Settings className="h-5 w-5 shrink-0" />
+            {!collapsed && <span>Paramètres</span>}
+          </Link>
+        )}
       </nav>
       <div className="border-t border-slate-700/50 p-2">
         {!collapsed && user && (

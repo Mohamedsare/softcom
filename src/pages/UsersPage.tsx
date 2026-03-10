@@ -40,6 +40,15 @@ function UsersList() {
 
   const createUserMutation = useMutation({
     mutationFn: async () => {
+      // Rafraîchir la session pour avoir un token valide, puis envoyer explicitement le Bearer
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) {
+        throw new Error('Session absente. Déconnectez-vous puis reconnectez-vous.')
+      }
+      await supabase.auth.refreshSession()
+      const { data: { session: fresh } } = await supabase.auth.getSession()
+      const token = fresh?.access_token ?? session.access_token
+
       const { data, error } = await supabase.functions.invoke('create-company-user', {
         body: {
           email: createEmail.trim(),
@@ -49,8 +58,21 @@ function UsersList() {
           company_id: currentCompanyId,
           store_ids: createStoreIds.length ? createStoreIds : undefined,
         },
+        headers: { Authorization: `Bearer ${token}` },
       })
-      if (error) throw error
+      if (error) {
+        const msg = error.message || ''
+        const bodyMsg = (data as { error?: string })?.error
+        if (bodyMsg === 'Unauthorized' || bodyMsg === 'Invalid token' || (msg.includes('401'))) {
+          throw new Error('Session expirée ou invalide. Déconnectez-vous puis reconnectez-vous, puis réessayez.')
+        }
+        if (msg.includes('Failed to send') || msg.includes('fetch') || msg.includes('Network')) {
+          throw new Error(
+            'Impossible de joindre le serveur (Edge Function). Déployez la fonction "create-company-user" sur votre projet Supabase : supabase functions deploy create-company-user'
+          )
+        }
+        throw new Error(bodyMsg || msg)
+      }
       if (data?.error) throw new Error(data.error)
       return data
     },
@@ -70,14 +92,29 @@ function UsersList() {
   const resetPasswordMutation = useMutation({
     mutationFn: async () => {
       if (!resetPasswordFor || !currentCompanyId) return
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) {
+        throw new Error('Session absente. Déconnectez-vous puis reconnectez-vous.')
+      }
+      await supabase.auth.refreshSession()
+      const { data: { session: fresh } } = await supabase.auth.getSession()
+      const token = fresh?.access_token ?? session.access_token
+
       const { data, error } = await supabase.functions.invoke('reset-user-password', {
         body: {
           user_id: resetPasswordFor.user_id,
           new_password: resetPasswordValue,
           company_id: currentCompanyId,
         },
+        headers: { Authorization: `Bearer ${token}` },
       })
-      if (error) throw error
+      if (error) {
+        const bodyMsg = (data as { error?: string })?.error
+        if (bodyMsg === 'Unauthorized' || bodyMsg === 'Invalid token') {
+          throw new Error('Session expirée ou invalide. Déconnectez-vous puis reconnectez-vous.')
+        }
+        throw new Error(bodyMsg || error.message)
+      }
       if (data?.error) throw new Error(data.error)
       return data
     },

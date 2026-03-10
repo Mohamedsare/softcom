@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useCompany } from '@/context/CompanyContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -19,6 +19,10 @@ export function SalesPage() {
   const [filterStatus, setFilterStatus] = useState<string>('')
   const [filterFrom, setFilterFrom] = useState('')
   const [filterTo, setFilterTo] = useState('')
+
+  useEffect(() => {
+    setFilterStore(currentStoreId ?? '')
+  }, [currentStoreId])
 
   const { data: sales = [], isLoading } = useQuery({
     queryKey: [

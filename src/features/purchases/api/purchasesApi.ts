@@ -172,48 +172,15 @@ export const purchasesApi = {
   },
 
   async confirm(id: string, userId: string): Promise<void> {
-    const purchase = await this.get(id)
-    if (!purchase || purchase.status !== 'draft')
-      throw new Error('Achat non trouvé ou déjà confirmé/annulé')
-
-    const { error: updateError } = await supabase
-      .from('purchases')
-      .update({ status: 'received' })
-      .eq('id', id)
-    if (updateError) throw new Error(updateError.message)
-
-    const items = await this.getItems(id)
-    for (const item of items) {
-      const { data: inv } = await supabase
-        .from('store_inventory')
-        .select('id, quantity')
-        .eq('store_id', purchase.store_id)
-        .eq('product_id', item.product_id)
-        .single()
-
-      if (inv) {
-        await supabase
-          .from('store_inventory')
-          .update({ quantity: inv.quantity + item.quantity })
-          .eq('id', inv.id)
-      } else {
-        await supabase.from('store_inventory').insert({
-          store_id: purchase.store_id,
-          product_id: item.product_id,
-          quantity: item.quantity,
-          reserved_quantity: 0,
-        })
+    const { error } = await supabase.rpc('confirm_purchase_with_stock', {
+      p_purchase_id: id,
+      p_created_by: userId,
+    })
+    if (error) {
+      if (error.message?.includes('déjà confirmé') || error.message?.includes('non trouvé')) {
+        throw new Error('Achat non trouvé ou déjà confirmé/annulé')
       }
-
-      await supabase.from('stock_movements').insert({
-        store_id: purchase.store_id,
-        product_id: item.product_id,
-        type: 'purchase_in',
-        quantity: item.quantity,
-        reference_type: 'purchase',
-        reference_id: id,
-        created_by: userId,
-      })
+      throw new Error(error.message)
     }
   },
 

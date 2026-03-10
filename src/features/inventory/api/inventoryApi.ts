@@ -34,7 +34,26 @@ export interface StockMovement {
   product?: { id: string; name: string; sku: string | null; unit: string }
 }
 
+/** Override du seuil d'alerte par (store, produit). null = utiliser product.stock_min */
+export async function getStoreStockMinOverrides(
+  storeId: string
+): Promise<Record<string, number | null>> {
+  const { data, error } = await supabase
+    .from('product_store_settings')
+    .select('product_id, stock_min_override')
+    .eq('store_id', storeId)
+  if (error) throw new Error(error.message)
+  const out: Record<string, number | null> = {}
+  for (const row of data ?? []) {
+    const r = row as { product_id: string; stock_min_override: number | null }
+    out[r.product_id] = r.stock_min_override ?? null
+  }
+  return out
+}
+
 export const inventoryApi = {
+  getStoreStockMinOverrides,
+
   async getStockByStore(storeId: string): Promise<Record<string, number>> {
     const { data, error } = await supabase
       .from('store_inventory')
@@ -140,39 +159,18 @@ export const inventoryApi = {
     reason: string,
     userId: string
   ): Promise<void> {
-    if (delta === 0) return
-    const { data: inv } = await supabase
-      .from('store_inventory')
-      .select('id, quantity')
-      .eq('store_id', storeId)
-      .eq('product_id', productId)
-      .single()
-    const newQty = Math.max(0, (inv?.quantity ?? 0) + delta)
-    if (inv) {
-      const { error: updErr } = await supabase
-        .from('store_inventory')
-        .update({ quantity: newQty })
-        .eq('id', inv.id)
-      if (updErr) throw new Error(updErr.message)
-    } else if (delta > 0) {
-      const { error: insErr } = await supabase.from('store_inventory').insert({
-        store_id: storeId,
-        product_id: productId,
-        quantity: newQty,
-        reserved_quantity: 0,
-      })
-      if (insErr) throw new Error(insErr.message)
-    }
-    const { error: movErr } = await supabase.from('stock_movements').insert({
-      store_id: storeId,
-      product_id: productId,
-      type: 'adjustment',
-      quantity: delta,
-      reference_type: null,
-      reference_id: null,
-      created_by: userId,
-      notes: reason || 'Ajustement manuel',
+    const { error } = await supabase.rpc('inventory_adjust_atomic', {
+      p_store_id: storeId,
+      p_product_id: productId,
+      p_delta: delta,
+      p_reason: reason || 'Ajustement manuel',
+      p_created_by: userId,
     })
-    if (movErr) throw new Error(movErr.message)
+    if (error) {
+      if (error.message?.includes('Stock insuffisant')) {
+        throw new Error('Stock insuffisant pour cet ajustement.')
+      }
+      throw new Error(error.message)
+    }
   },
 }

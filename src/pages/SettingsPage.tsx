@@ -1,5 +1,7 @@
 import { Card, CardHeader, CardTitle, CardContent, PageHeader } from '@/components/ui'
 import { Button, Input, Label } from '@/components/ui'
+import { RequirePermission } from '@/components/guards/RequirePermission'
+import { PERMISSIONS } from '@/constants/permissions'
 import { useAuth } from '@/context/AuthContext'
 import { useCompany } from '@/context/CompanyContext'
 import { useTheme } from '@/context/ThemeContext'
@@ -11,6 +13,14 @@ import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
 export function SettingsPage() {
+  return (
+    <RequirePermission permission={PERMISSIONS.settings_manage} fallback={<p className="p-4 text-[var(--text-muted)]">Vous n'avez pas accès aux paramètres.</p>}>
+      <SettingsPageContent />
+    </RequirePermission>
+  )
+}
+
+function SettingsPageContent() {
   const { user, profile, refreshProfile, signOut } = useAuth()
   const { companies, stores, currentCompanyId, currentStoreId, setCurrentCompanyId, setCurrentStoreId } = useCompany()
   const { theme, setTheme } = useTheme()

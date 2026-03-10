@@ -1,14 +1,17 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useCompany } from '@/context/CompanyContext'
 import { useAuth } from '@/context/AuthContext'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Card, PageHeader, Button, Badge } from '@/components/ui'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Card, PageHeader, Button, Input, Label } from '@/components/ui'
 import { formatCurrency, formatDateTime } from '@/lib/utils'
-import { Search, Package, TrendingUp, AlertTriangle, XCircle, Edit3, History, Download } from 'lucide-react'
+import { Search, Package, TrendingUp, AlertTriangle, XCircle, Edit3, History, Download, Settings } from 'lucide-react'
 import { inventoryApi } from '@/features/inventory/api/inventoryApi'
 import { productsApi } from '@/features/products/api/productsApi'
+import { companySettingsApi } from '@/features/settings/api/companySettingsApi'
 import { AdjustStockDialog } from '@/features/inventory/components/AdjustStockDialog'
 import { inventoryToCsv, downloadInventoryCsv } from '@/features/inventory/utils/inventoryCsv'
+import { StockRangeSlider } from '@/features/inventory/components/StockRangeSlider'
+import { useInventoryRealtime } from '@/features/inventory/hooks/useInventoryRealtime'
 import { toast } from 'sonner'
 
 const MOVEMENT_LABEL: Record<string, string> = {
@@ -27,9 +30,12 @@ export function InventoryPage() {
   const { currentCompanyId, currentStoreId, stores } = useCompany()
   const { user } = useAuth()
   const queryClient = useQueryClient()
+  useInventoryRealtime(currentStoreId ?? null)
   const [search, setSearch] = useState('')
   const [filterCategory, setFilterCategory] = useState<string>('')
   const [filterStatus, setFilterStatus] = useState<'all' | 'low' | 'out'>('all')
+  const [showStockSettings, setShowStockSettings] = useState(false)
+  const [defaultThresholdInput, setDefaultThresholdInput] = useState('')
   const [adjustingItem, setAdjustingItem] = useState<{
     id: string
     name: string
@@ -39,16 +45,59 @@ export function InventoryPage() {
   } | null>(null)
   const [showMovements, setShowMovements] = useState(false)
 
-  const { data: items = [], isLoading } = useQuery({
-    queryKey: ['inventory', currentCompanyId, currentStoreId, search, filterCategory, filterStatus],
+  const { data: rawItems = [], isLoading } = useQuery({
+    queryKey: ['inventory', currentCompanyId, currentStoreId, search, filterCategory],
     queryFn: () =>
       inventoryApi.list(currentCompanyId!, currentStoreId!, {
         search: search || undefined,
         categoryId: filterCategory || undefined,
-        status: filterStatus,
+        status: 'all',
       }),
     enabled: !!currentCompanyId && !!currentStoreId,
   })
+
+  const { data: defaultThreshold = 5 } = useQuery({
+    queryKey: ['company-settings', 'default_stock_alert', currentCompanyId],
+    queryFn: () => companySettingsApi.getDefaultStockAlertThreshold(currentCompanyId!),
+    enabled: !!currentCompanyId,
+  })
+
+  const { data: overrides = {} } = useQuery({
+    queryKey: ['product-store-overrides', currentStoreId],
+    queryFn: () => inventoryApi.getStoreStockMinOverrides(currentStoreId!),
+    enabled: !!currentStoreId,
+  })
+
+  const saveThresholdMutation = useMutation({
+    mutationFn: (value: number) =>
+      companySettingsApi.setDefaultStockAlertThreshold(currentCompanyId!, value),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['company-settings', 'default_stock_alert', currentCompanyId] })
+      setShowStockSettings(false)
+      toast.success('Seuil d\'alerte enregistré')
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : 'Erreur'),
+  })
+
+  const effectiveMin = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const i of rawItems) {
+      const override = overrides[i.product_id]
+      const productMin = i.product?.stock_min ?? 0
+      const min = override !== undefined && override !== null ? override : productMin
+      map.set(i.product_id, min > 0 ? min : defaultThreshold)
+    }
+    return map
+  }, [rawItems, overrides, defaultThreshold])
+
+  const items = useMemo(() => {
+    if (filterStatus === 'all') return rawItems
+    if (filterStatus === 'out') return rawItems.filter((i) => i.quantity === 0)
+    return rawItems.filter((i) => {
+      const min = effectiveMin.get(i.product_id) ?? 0
+      return min > 0 && i.quantity <= min
+    })
+  }, [rawItems, filterStatus, effectiveMin])
 
   const { data: categories = [] } = useQuery({
     queryKey: ['categories', currentCompanyId],
@@ -62,11 +111,12 @@ export function InventoryPage() {
     enabled: !!currentStoreId && showMovements,
   })
 
-  const lowStock = items.filter(
-    (i) => (i.product?.stock_min ?? 0) > 0 && i.quantity <= (i.product?.stock_min ?? 0)
-  )
-  const outOfStock = items.filter((i) => i.quantity === 0)
-  const totalValue = items.reduce(
+  const lowStock = rawItems.filter((i) => {
+    const min = effectiveMin.get(i.product_id) ?? 0
+    return min > 0 && i.quantity <= min
+  })
+  const outOfStock = rawItems.filter((i) => i.quantity === 0)
+  const totalValue = rawItems.reduce(
     (sum, i) => sum + (i.product?.sale_price ?? 0) * i.quantity,
     0
   )
@@ -99,66 +149,117 @@ export function InventoryPage() {
         title="Stock"
         description={currentStore ? `Stock — ${currentStore.name}` : 'Sélectionnez une boutique'}
         actions={
-          <Button onClick={handleExportCsv} size="sm" variant="secondary" disabled={items.length === 0}>
-            <Download className="h-4 w-4" />
-            <span className="hidden sm:inline">Exporter CSV</span>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              onClick={() => {
+                setShowStockSettings((v) => !v)
+                setDefaultThresholdInput(String(defaultThreshold))
+              }}
+              size="sm"
+              variant="secondary"
+            >
+              <Settings className="h-4 w-4" />
+              <span className="hidden sm:inline">Paramètres stock</span>
+            </Button>
+            <Button onClick={handleExportCsv} size="sm" variant="secondary" disabled={rawItems.length === 0}>
+              <Download className="h-4 w-4" />
+              <span className="hidden sm:inline">Exporter CSV</span>
+            </Button>
+          </div>
         }
       />
 
       {/* Cartes récapitulatives */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="border-l-4 border-l-[var(--accent)] p-4">
-          <div className="flex items-center gap-3">
-            <div className="rounded-full bg-orange-500/10 p-2">
+        <Card className="border-l-4 border-l-[var(--accent)] p-4 min-w-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="rounded-full bg-orange-500/10 p-2 shrink-0">
               <Package className="h-5 w-5 text-[var(--accent)]" />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-sm text-[var(--text-muted)]">Produits en stock</p>
-              <p className="text-xl font-semibold text-[var(--text-primary)]">{items.length}</p>
+              <p className="text-base font-semibold text-[var(--text-primary)] tabular-nums">{rawItems.length}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="rounded-full bg-emerald-500/10 p-2">
+        <Card className="p-4 min-w-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="rounded-full bg-emerald-500/10 p-2 shrink-0">
               <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-sm text-[var(--text-muted)]">Valeur totale</p>
-              <p className="text-xl font-semibold text-[var(--text-primary)]">
+              <p className="text-base font-semibold text-[var(--text-primary)] tabular-nums truncate" title={formatCurrency(totalValue)}>
                 {formatCurrency(totalValue)}
               </p>
             </div>
           </div>
         </Card>
         <Card
-          className={`p-4 ${lowStock.length > 0 ? 'border-l-4 border-l-amber-500 bg-amber-500/5' : ''}`}
+          className={`p-4 min-w-0 ${lowStock.length > 0 ? 'border-l-4 border-l-amber-500 bg-amber-500/5' : ''}`}
         >
-          <div className="flex items-center gap-3">
-            <div className="rounded-full bg-amber-500/10 p-2">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="rounded-full bg-amber-500/10 p-2 shrink-0">
               <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-sm text-[var(--text-muted)]">Sous le minimum</p>
-              <p className="text-xl font-semibold text-[var(--text-primary)]">{lowStock.length}</p>
+              <p className="text-base font-semibold text-[var(--text-primary)] tabular-nums">{lowStock.length}</p>
             </div>
           </div>
         </Card>
         <Card
-          className={`p-4 ${outOfStock.length > 0 ? 'border-l-4 border-l-red-500 bg-red-500/5' : ''}`}
+          className={`p-4 min-w-0 ${outOfStock.length > 0 ? 'border-l-4 border-l-red-500 bg-red-500/5' : ''}`}
         >
-          <div className="flex items-center gap-3">
-            <div className="rounded-full bg-red-500/10 p-2">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="rounded-full bg-red-500/10 p-2 shrink-0">
               <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-sm text-[var(--text-muted)]">Rupture de stock</p>
-              <p className="text-xl font-semibold text-[var(--text-primary)]">{outOfStock.length}</p>
+              <p className="text-base font-semibold text-[var(--text-primary)] tabular-nums">{outOfStock.length}</p>
             </div>
           </div>
         </Card>
       </div>
+
+      {/* Paramètres stock (seuil d'alerte par défaut) */}
+      {showStockSettings && (
+        <Card className="p-4">
+          <div className="flex flex-col sm:flex-row sm:items-end gap-3 max-w-md">
+            <div className="flex-1">
+              <Label htmlFor="default_threshold" className="mb-1 block text-sm text-[var(--text-muted)]">
+                Seuil d'alerte par défaut
+              </Label>
+              <Input
+                id="default_threshold"
+                type="number"
+                min={0}
+                value={defaultThresholdInput}
+                onChange={(e) => setDefaultThresholdInput(e.target.value)}
+                placeholder="5"
+              />
+              <p className="mt-1 text-xs text-[var(--text-muted)]">
+                Utilisé pour les produits sans seuil défini. En dessous, le stock est en alerte.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => {
+                const n = parseInt(defaultThresholdInput, 10)
+                if (Number.isNaN(n) || n < 0) {
+                  toast.error('Saisissez un nombre ≥ 0')
+                  return
+                }
+                saveThresholdMutation.mutate(n)
+              }}
+              disabled={saveThresholdMutation.isPending}
+            >
+              Enregistrer
+            </Button>
+          </div>
+        </Card>
+      )}
 
       {/* Filtres */}
       <Card>
@@ -240,17 +341,14 @@ export function InventoryPage() {
                       <th className="hidden p-4 font-medium text-[var(--text-primary)] md:table-cell">Réservé</th>
                       <th className="p-4 font-medium text-[var(--text-primary)]">Min</th>
                       <th className="hidden p-4 font-medium text-[var(--text-primary)] lg:table-cell">Unité</th>
-                      <th className="p-4 font-medium text-[var(--text-primary)]">Statut</th>
+                      <th className="p-4 font-medium text-[var(--text-primary)]">Niveau</th>
                       <th className="p-4 font-medium text-[var(--text-primary)]">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {items.map((i) => {
-                      const min = i.product?.stock_min ?? 0
+                      const min = effectiveMin.get(i.product_id) ?? 0
                       const qty = i.quantity
-                      let status: 'ok' | 'low' | 'out' = 'ok'
-                      if (qty === 0) status = 'out'
-                      else if (min > 0 && qty <= min) status = 'low'
                       return (
                         <tr key={i.id} className="border-b border-[var(--border-solid)]">
                           <td className="p-4">
@@ -279,13 +377,10 @@ export function InventoryPage() {
                           <td className="p-4">{min}</td>
                           <td className="hidden p-4 lg:table-cell">{i.product?.unit ?? 'pce'}</td>
                           <td className="p-4">
-                            <Badge
-                              variant={
-                                status === 'out' ? 'danger' : status === 'low' ? 'warning' : 'success'
-                              }
-                            >
-                              {status === 'out' ? 'Rupture' : status === 'low' ? 'Sous min' : 'OK'}
-                            </Badge>
+                            <StockRangeSlider
+                              quantity={Number(qty) || 0}
+                              alertThreshold={Number(min) || defaultThreshold}
+                            />
                           </td>
                           <td className="p-4">
                             <button

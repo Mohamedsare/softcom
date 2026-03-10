@@ -354,6 +354,13 @@ authorization_url_path = "/oauth/consent"
 # Allow dynamic client registration
 allow_dynamic_registration = false
 
+# Edge Functions : désactiver la vérification JWT à la passerelle pour que la fonction
+# reçoive la requête et valide elle-même le Bearer (évite 401 avec les nouvelles clés JWT).
+[functions.create-company-user]
+verify_jwt = false
+[functions.reset-user-password]
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.

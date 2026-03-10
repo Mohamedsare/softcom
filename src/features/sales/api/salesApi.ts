@@ -51,10 +51,6 @@ export interface CreateSaleInput {
   payments: Array<{ method: PaymentMethod; amount: number; reference?: string | null }>
 }
 
-function generateSaleNumber(): string {
-  return `S-${Date.now()}`
-}
-
 export const salesApi = {
   async list(
     companyId: string,
@@ -129,112 +125,43 @@ export const salesApi = {
   },
 
   async create(input: CreateSaleInput, userId: string): Promise<Sale> {
-    const subtotal = input.items.reduce(
-      (sum, i) => sum + i.quantity * i.unit_price - (i.discount ?? 0),
-      0
-    )
-    const discount = input.discount ?? 0
-    const tax = 0
-    const total = Math.max(0, subtotal - discount + tax)
-
-    const saleNumber = generateSaleNumber()
-    const { data: sale, error: saleError } = await supabase
-      .from('sales')
-      .insert({
-        company_id: input.company_id,
-        store_id: input.store_id,
-        customer_id: input.customer_id || null,
-        sale_number: saleNumber,
-        status: 'completed',
-        subtotal,
-        discount,
-        tax,
-        total,
-        created_by: userId,
-      })
-      .select()
-      .single()
-    if (saleError) throw new Error(saleError.message)
-
-    const items = input.items.map((i) => ({
-      sale_id: sale.id,
-      product_id: i.product_id,
-      quantity: i.quantity,
-      unit_price: i.unit_price,
-      discount: i.discount ?? 0,
-      total: i.quantity * i.unit_price - (i.discount ?? 0),
-    }))
-    const { error: itemsError } = await supabase.from('sale_items').insert(items)
-    if (itemsError) throw new Error(itemsError.message)
-
-    const { error: paymentsError } = await supabase.from('sale_payments').insert(
-      input.payments.map((p) => ({
-        sale_id: sale.id,
+    const { data: saleId, error } = await supabase.rpc('create_sale_with_stock', {
+      p_company_id: input.company_id,
+      p_store_id: input.store_id,
+      p_customer_id: input.customer_id || null,
+      p_created_by: userId,
+      p_items: input.items.map((i) => ({
+        product_id: i.product_id,
+        quantity: i.quantity,
+        unit_price: i.unit_price,
+        discount: i.discount ?? 0,
+      })),
+      p_payments: input.payments.map((p) => ({
         method: p.method,
         amount: p.amount,
         reference: p.reference ?? null,
-      }))
-    )
-    if (paymentsError) throw new Error(paymentsError.message)
-
-    for (const item of input.items) {
-      const { data: inv } = await supabase
-        .from('store_inventory')
-        .select('id, quantity')
-        .eq('store_id', input.store_id)
-        .eq('product_id', item.product_id)
-        .single()
-      if (inv) {
-        await supabase
-          .from('store_inventory')
-          .update({ quantity: Math.max(0, inv.quantity - item.quantity) })
-          .eq('id', inv.id)
-        await supabase.from('stock_movements').insert({
-          store_id: input.store_id,
-          product_id: item.product_id,
-          type: 'sale_out',
-          quantity: -item.quantity,
-          reference_type: 'sale',
-          reference_id: sale.id,
-          created_by: userId,
-        })
+      })),
+      p_discount: input.discount ?? 0,
+    })
+    if (error) {
+      const msg = error.message || ''
+      if (msg.includes('Stock insuffisant') || msg.includes('insufficient')) {
+        throw new Error(msg.replace(/^[^"]*"/, '').replace(/"\s*\(.*$/, '').trim() || 'Stock insuffisant pour un ou plusieurs produits.')
       }
+      throw new Error(error.message)
     }
-
-    return sale as Sale
+    const sale = await this.get(saleId as string)
+    if (!sale) throw new Error('Vente créée mais introuvable')
+    return sale
   },
 
   async cancel(id: string): Promise<void> {
-    const sale = await this.get(id)
-    if (!sale || sale.status !== 'completed') throw new Error('Vente non trouvée ou déjà annulée')
-    const { error: updateError } = await supabase
-      .from('sales')
-      .update({ status: 'cancelled' })
-      .eq('id', id)
-    if (updateError) throw new Error(updateError.message)
-    const items = await this.getItems(id)
-    for (const item of items) {
-      const { data: inv } = await supabase
-        .from('store_inventory')
-        .select('id, quantity')
-        .eq('store_id', sale.store_id)
-        .eq('product_id', item.product_id)
-        .single()
-      if (inv) {
-        await supabase
-          .from('store_inventory')
-          .update({ quantity: inv.quantity + item.quantity })
-          .eq('id', inv.id)
-        await supabase.from('stock_movements').insert({
-          store_id: sale.store_id,
-          product_id: item.product_id,
-          type: 'return_in',
-          quantity: item.quantity,
-          reference_type: 'sale',
-          reference_id: id,
-          notes: 'Annulation vente',
-        })
+    const { error } = await supabase.rpc('cancel_sale_restore_stock', { p_sale_id: id })
+    if (error) {
+      if (error.message?.includes('déjà annulée') || error.message?.includes('non trouvée')) {
+        throw new Error('Vente non trouvée ou déjà annulée')
       }
+      throw new Error(error.message)
     }
   },
 }

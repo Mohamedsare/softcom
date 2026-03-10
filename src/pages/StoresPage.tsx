@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useCompany } from '@/context/CompanyContext'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button, Card, PageHeader } from '@/components/ui'
 import { ROUTES } from '@/routes'
 import { Plus, Store, Pencil, ShoppingCart } from 'lucide-react'
@@ -9,8 +9,10 @@ import { getStoresByCompany } from '@/features/stores/api/storesService'
 import type { StoreEdit } from '@/features/stores/components/EditStoreDialog'
 import { CreateStoreForm } from '@/features/stores/components/CreateStoreForm'
 import { EditStoreDialog } from '@/features/stores/components/EditStoreDialog'
+import { toast } from 'sonner'
 
 export function StoresPage() {
+  const queryClient = useQueryClient()
   const { stores, currentCompanyId, companies, refreshStores, refreshCompanies } = useCompany()
   const [showCreate, setShowCreate] = useState(false)
   const [editingStore, setEditingStore] = useState<StoreEdit | null>(null)
@@ -24,16 +26,20 @@ export function StoresPage() {
     enabled: !!currentCompanyId,
   })
 
-  const handleCreated = () => {
+  const handleCreated = async () => {
     setShowCreate(false)
-    refreshStores()
-    refreshCompanies()
+    queryClient.invalidateQueries({ queryKey: ['stores-full', currentCompanyId!] })
+    await refreshStores()
+    await refreshCompanies()
+    toast.success('Boutique créée')
   }
 
-  const handleUpdated = () => {
+  const handleUpdated = async () => {
     setEditingStore(null)
-    refreshStores()
-    refreshCompanies()
+    queryClient.invalidateQueries({ queryKey: ['stores-full', currentCompanyId!] })
+    await refreshStores()
+    await refreshCompanies()
+    toast.success('Boutique mise à jour')
   }
 
   const storeList: Array<StoreEdit | (typeof stores)[number]> =

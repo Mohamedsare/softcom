@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase'
 export interface CreateStoreInput {
   company_id: string
   name: string
+  /** Code ignoré : généré automatiquement par le serveur (B1, B2, …) */
   code?: string
   address?: string
   logo_url?: string
@@ -43,31 +44,25 @@ export async function getCompanyWithQuota(companyId: string): Promise<{ store_qu
 }
 
 export async function createStore(input: CreateStoreInput): Promise<Store> {
-  const { count } = await supabase.from('stores').select('*', { count: 'exact', head: true }).eq('company_id', input.company_id)
-  const quotaResult = await getCompanyWithQuota(input.company_id)
-  const quota = quotaResult?.store_quota ?? 3
-  const currentCount = count ?? 0
-  if (currentCount >= quota) {
-    throw new Error(`Quota de boutiques atteint (${quota}). Demandez une augmentation.`)
-  }
-  const { data, error } = await supabase
-    .from('stores')
-    .insert({
-      company_id: input.company_id,
-      name: input.name,
-      code: input.code || null,
-      address: input.address || null,
-      logo_url: input.logo_url || null,
-      phone: input.phone || null,
-      email: input.email || null,
-      description: input.description || null,
-      is_primary: input.is_primary ?? false,
-      is_active: true,
-    })
-    .select('id, company_id, name, code, address, logo_url, phone, email, description, is_active, is_primary, created_at')
-    .single()
+  const { data, error } = await supabase.rpc('create_store', {
+    p_company_id: input.company_id,
+    p_name: input.name,
+    p_address: input.address || null,
+    p_phone: input.phone || null,
+    p_email: input.email || null,
+    p_description: input.description || null,
+    p_is_primary: input.is_primary ?? false,
+  })
   if (error) throw new Error(error.message)
-  return data as Store
+  const store = data as Store
+  if (input.logo_url) {
+    await supabase
+      .from('stores')
+      .update({ logo_url: input.logo_url })
+      .eq('id', store.id)
+    return { ...store, logo_url: input.logo_url }
+  }
+  return store
 }
 
 export async function updateStore(
@@ -78,7 +73,6 @@ export async function updateStore(
     .from('stores')
     .update({
       name: input.name,
-      code: input.code ?? undefined,
       address: input.address ?? undefined,
       logo_url: input.logo_url ?? undefined,
       phone: input.phone ?? undefined,

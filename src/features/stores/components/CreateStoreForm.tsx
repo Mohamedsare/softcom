@@ -7,7 +7,6 @@ import { Button, Input, Label } from '@/components/ui'
 
 const schema = z.object({
   name: z.string().min(2, 'Nom requis'),
-  code: z.string().optional(),
   address: z.string().optional(),
   phone: z.string().optional(),
   email: z.string().email('Email invalide').optional().or(z.literal('')),
@@ -43,7 +42,6 @@ export function CreateStoreForm({ companyId, onSuccess, onCancel }: CreateStoreF
       const store = await createStore({
         company_id: companyId,
         name: data.name,
-        code: data.code || undefined,
         address: data.address || undefined,
         phone: data.phone || undefined,
         email: data.email || undefined,
@@ -53,7 +51,7 @@ export function CreateStoreForm({ companyId, onSuccess, onCancel }: CreateStoreF
       if (logoFile) {
         const { uploadStoreLogo, updateStore } = await import('../api/storesService')
         const logo_url = await uploadStoreLogo(store.id, logoFile)
-        await updateStore(store.id, { ...data, logo_url })
+        await updateStore(store.id, { name: data.name, address: data.address, phone: data.phone, email: data.email, description: data.description, is_primary: data.is_primary, logo_url })
       }
       onSuccess()
     } catch (e) {
@@ -91,11 +89,8 @@ export function CreateStoreForm({ companyId, onSuccess, onCancel }: CreateStoreF
         <Label htmlFor="name" className="mb-2 block">Nom *</Label>
         <Input id="name" {...register('name')} error={errors.name?.message} />
       </div>
+      <p className="text-xs text-[var(--text-muted)]">Le code (B1, B2, …) est généré automatiquement par le système.</p>
       <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="code" className="mb-2 block">Code</Label>
-          <Input id="code" {...register('code')} placeholder="B1" />
-        </div>
         <div>
           <Label htmlFor="phone" className="mb-2 block">Téléphone</Label>
           <Input id="phone" type="tel" {...register('phone')} />

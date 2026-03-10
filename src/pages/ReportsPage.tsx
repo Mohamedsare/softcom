@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react'
 import { useCompany } from '@/context/CompanyContext'
 import { useQuery } from '@tanstack/react-query'
+import { RequirePermission } from '@/components/guards/RequirePermission'
+import { PERMISSIONS } from '@/constants/permissions'
 import { Card, PageHeader, Button, Badge } from '@/components/ui'
 import {
   TrendingUp,
@@ -29,6 +31,17 @@ import { formatCurrency } from '@/lib/utils'
 type Period = 'today' | 'week' | 'month'
 
 export function ReportsPage() {
+  return (
+    <RequirePermission
+      permission={PERMISSIONS.reports_view_store}
+      fallback={<p className="p-4 text-[var(--text-muted)]">Vous n'avez pas accès aux rapports.</p>}
+    >
+      <ReportsPageContent />
+    </RequirePermission>
+  )
+}
+
+function ReportsPageContent() {
   const { currentCompanyId, currentStoreId, stores, setCurrentStoreId, companies } = useCompany()
   const [period, setPeriod] = useState<Period>('week')
 

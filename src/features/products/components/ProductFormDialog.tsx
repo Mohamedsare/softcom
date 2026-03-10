@@ -75,7 +75,7 @@ export function ProductFormDialog({
       purchase_price: 0,
       sale_price: 0,
       min_price: null,
-      stock_min: 0,
+      stock_min: 5,
       is_active: true,
     },
   })
@@ -111,7 +111,7 @@ export function ProductFormDialog({
         purchase_price: 0,
         sale_price: 0,
         min_price: null,
-        stock_min: 0,
+        stock_min: 5,
         description: '',
         is_active: true,
         category_id: '',

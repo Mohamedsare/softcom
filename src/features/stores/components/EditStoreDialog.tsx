@@ -21,7 +21,6 @@ export interface StoreEdit {
 
 const schema = z.object({
   name: z.string().min(2, 'Nom requis'),
-  code: z.string().optional(),
   address: z.string().optional(),
   phone: z.string().optional(),
   email: z.string().email('Email invalide').optional().or(z.literal('')),
@@ -53,7 +52,6 @@ export function EditStoreDialog({ store, open, onClose, onSuccess }: EditStoreDi
     resolver: zodResolver(schema),
     defaultValues: {
       name: store.name,
-      code: store.code ?? '',
       address: store.address ?? '',
       phone: store.phone ?? '',
       email: store.email ?? '',
@@ -95,7 +93,12 @@ export function EditStoreDialog({ store, open, onClose, onSuccess }: EditStoreDi
         logo_url = await uploadStoreLogo(store.id, logoFile)
       }
       await updateStore(store.id, {
-        ...data,
+        name: data.name,
+        address: data.address,
+        phone: data.phone,
+        email: data.email,
+        description: data.description,
+        is_primary: data.is_primary,
         logo_url: logo_url ?? undefined,
       })
       onSuccess()
@@ -144,8 +147,11 @@ export function EditStoreDialog({ store, open, onClose, onSuccess }: EditStoreDi
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="code" className="mb-2 block">Code</Label>
-                <Input id="code" {...register('code')} />
+                <Label className="mb-2 block">Code</Label>
+                <div className="flex h-10 items-center rounded-lg border border-[var(--border-solid)] bg-slate-50 px-3 py-2 text-sm text-[var(--text-muted)] dark:bg-slate-800">
+                  {store.code ?? '—'}
+                </div>
+                <p className="mt-1 text-xs text-[var(--text-muted)]">Généré automatiquement par le système</p>
               </div>
               <div>
                 <Label htmlFor="phone" className="mb-2 block">Téléphone</Label>

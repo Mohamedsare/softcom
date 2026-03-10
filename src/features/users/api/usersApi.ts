@@ -73,3 +73,12 @@ export async function setCompanyMemberActive(
     .eq('id', userCompanyRoleId)
   if (error) throw error
 }
+
+/** Permissions de l'utilisateur courant pour une entreprise (via rôles). */
+export async function getMyPermissionKeys(companyId: string): Promise<string[]> {
+  const { data, error } = await supabase.rpc('get_my_permission_keys', {
+    p_company_id: companyId,
+  })
+  if (error) throw error
+  return Array.isArray(data) ? data : []
+}

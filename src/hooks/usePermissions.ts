@@ -1,26 +1,32 @@
 import { useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '@/context/AuthContext'
 import { useCompany } from '@/context/CompanyContext'
+import { getMyPermissionKeys } from '@/features/users/api/usersApi'
 import type { PermissionKey } from '@/constants/permissions'
 
 /**
- * Resolves user permissions for the current company from roles.
- * In a full implementation, this would query user_company_roles + role_permissions
- * or use an RPC. For now we assume permissions are loaded with the app (e.g. from a me/permissions endpoint).
+ * Droits de l'utilisateur pour l'entreprise courante (selon son rôle).
+ * Super_admin a toutes les permissions. Sinon on utilise get_my_permission_keys (RPC).
  */
 export function usePermissions(): { hasPermission: (key: PermissionKey) => boolean; isSuperAdmin: boolean } {
   const { profile } = useAuth()
   const { currentCompanyId } = useCompany()
 
+  const { data: permissionKeys = [] } = useQuery({
+    queryKey: ['my-permission-keys', currentCompanyId],
+    queryFn: () => getMyPermissionKeys(currentCompanyId!),
+    enabled: !!currentCompanyId && !(profile?.is_super_admin),
+  })
+
   return useMemo(() => {
     const isSuperAdmin = profile?.is_super_admin ?? false
-    const hasPermission = (_key: PermissionKey): boolean => {
+    const keySet = new Set(permissionKeys)
+    const hasPermission = (key: PermissionKey): boolean => {
       if (isSuperAdmin) return true
       if (!currentCompanyId) return false
-      // TODO: load role permissions for current user + company and check key
-      // For now allow all for any authenticated user with a company (demo)
-      return true
+      return keySet.has(key)
     }
     return { hasPermission, isSuperAdmin }
-  }, [profile?.is_super_admin, currentCompanyId])
+  }, [profile?.is_super_admin, currentCompanyId, permissionKeys])
 }

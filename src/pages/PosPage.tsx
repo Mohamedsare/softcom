@@ -8,6 +8,7 @@ import { Trash2, Minus, Plus, User, Package, Printer, X } from 'lucide-react'
 import { productsApi } from '@/features/products/api/productsApi'
 import { customersApi } from '@/features/customers/api/customersApi'
 import { inventoryApi } from '@/features/inventory/api/inventoryApi'
+import { useInventoryRealtime } from '@/features/inventory/hooks/useInventoryRealtime'
 import { salesApi } from '@/features/sales/api/salesApi'
 import { useAuth } from '@/context/AuthContext'
 import { toast } from 'sonner'
@@ -47,6 +48,7 @@ export function PosPage() {
   const receiptSnapshotRef = useRef<Omit<ReceiptDialogData, 'saleNumber'> | null>(null) as MutableRefObject<Omit<ReceiptDialogData, 'saleNumber'> | null>
 
   const currentStore = stores.find((s) => s.id === storeId)
+  useInventoryRealtime(storeId ?? null)
 
   const { data: products = [] } = useQuery({
     queryKey: ['products', currentCompanyId],
