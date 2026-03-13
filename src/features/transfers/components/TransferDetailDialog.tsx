@@ -179,7 +179,7 @@ export function TransferDetailDialog({
                 {canReceive && (
                   <Button
                     size="sm"
-                    variant="default"
+                    variant="primary"
                     onClick={() => {
                       if (
                         confirm(
