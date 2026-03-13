@@ -189,7 +189,7 @@ export function TransfersPage() {
           stores={stores}
           open={showCreate}
           onClose={() => setShowCreate(false)}
-          onSuccess={() => {}}
+          onSuccess={() => refetch()}
         />
       )}
 
