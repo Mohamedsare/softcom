@@ -88,3 +88,36 @@ export async function getMyPermissionKeys(companyId: string): Promise<string[]> 
   if (error) throw error
   return Array.isArray(data) ? data : []
 }
+
+/**
+ * Permissions effectives d'un utilisateur (rôle + overrides). Réservé à l'owner.
+ */
+export async function getUserPermissionKeys(
+  companyId: string,
+  userId: string
+): Promise<string[]> {
+  const { data, error } = await supabase.rpc('get_user_permission_keys', {
+    p_company_id: companyId,
+    p_user_id: userId,
+  })
+  if (error) throw error
+  return Array.isArray(data) ? data : []
+}
+
+/**
+ * Ajoute (granted=true) ou retire (granted=false) une permission pour un utilisateur. Réservé à l'owner.
+ */
+export async function setUserPermissionOverride(
+  companyId: string,
+  userId: string,
+  permissionKey: string,
+  granted: boolean
+): Promise<void> {
+  const { error } = await supabase.rpc('set_user_permission_override', {
+    p_company_id: companyId,
+    p_user_id: userId,
+    p_permission_key: permissionKey,
+    p_granted: granted,
+  })
+  if (error) throw error
+}

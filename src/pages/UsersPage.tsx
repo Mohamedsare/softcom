@@ -3,18 +3,20 @@ import { Card, Button, PageHeader, Input, Label } from '@/components/ui'
 import { useAuth } from '@/context/AuthContext'
 import { useCompany } from '@/context/CompanyContext'
 import { RequirePermission } from '@/components/guards/RequirePermission'
-import { PERMISSIONS } from '@/constants/permissions'
+import { PERMISSIONS, PERMISSION_LABELS } from '@/constants/permissions'
 import {
   listCompanyMembers,
   listRoles,
   setCompanyMemberActive,
   removeCompanyMember,
+  getUserPermissionKeys,
+  setUserPermissionOverride,
 } from '@/features/users/api/usersApi'
 import { supabase } from '@/lib/supabase'
 import { translateErrorMessage } from '@/lib/errorMessages'
-import { UserPlus, UserCheck, UserX, X, KeyRound, Trash2 } from 'lucide-react'
+import { UserPlus, UserCheck, UserX, X, KeyRound, Trash2, Shield } from 'lucide-react'
 import { toast } from 'sonner'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 function UsersList() {
   const { user } = useAuth()
@@ -29,6 +31,9 @@ function UsersList() {
   const [resetPasswordFor, setResetPasswordFor] = useState<{ user_id: string; ucrId: string } | null>(null)
   const [resetPasswordValue, setResetPasswordValue] = useState('')
   const [resetPasswordConfirm, setResetPasswordConfirm] = useState('')
+  const [rightsSelectedUserId, setRightsSelectedUserId] = useState<string | null>(null)
+  const [rightsPermissionKeys, setRightsPermissionKeys] = useState<string[]>([])
+  const [rightsUpdatingKeys, setRightsUpdatingKeys] = useState<Set<string>>(new Set())
 
   const { data: members = [], isLoading } = useQuery({
     queryKey: ['company-members', currentCompanyId],
@@ -150,8 +155,50 @@ function UsersList() {
     onError: (e) => toast.error(translateErrorMessage(e instanceof Error ? e.message : undefined)),
   })
 
+  const { data: rightsKeys = [], isLoading: rightsLoading, isError: rightsIsError, error: rightsErrorResp, refetch: refetchRights } = useQuery({
+    queryKey: ['user-permission-keys', currentCompanyId, rightsSelectedUserId],
+    queryFn: () => getUserPermissionKeys(currentCompanyId!, rightsSelectedUserId!),
+    enabled: !!currentCompanyId && !!rightsSelectedUserId,
+  })
+  const rightsError = rightsIsError && rightsErrorResp ? (rightsErrorResp instanceof Error ? rightsErrorResp.message : 'Erreur') : null
+
+  useEffect(() => {
+    if (rightsSelectedUserId && rightsKeys.length >= 0) {
+      setRightsPermissionKeys([...rightsKeys].sort())
+    } else if (!rightsSelectedUserId) {
+      setRightsPermissionKeys([])
+    }
+  }, [rightsSelectedUserId, rightsKeys])
+
+  const togglePermissionMutation = useMutation({
+    mutationFn: ({ key, granted }: { key: string; granted: boolean }) =>
+      setUserPermissionOverride(currentCompanyId!, rightsSelectedUserId!, key, granted),
+    onMutate: ({ key }) => {
+      setRightsUpdatingKeys((s) => new Set(s).add(key))
+    },
+    onSuccess: (_, { key }) => {
+      setRightsUpdatingKeys((s) => {
+        const next = new Set(s)
+        next.delete(key)
+        return next
+      })
+      queryClient.invalidateQueries({ queryKey: ['user-permission-keys', currentCompanyId, rightsSelectedUserId] })
+      toast.success('Droit mis à jour')
+    },
+    onError: (e, { key }) => {
+      setRightsUpdatingKeys((s) => {
+        const next = new Set(s)
+        next.delete(key)
+        return next
+      })
+      toast.error(translateErrorMessage(e instanceof Error ? e.message : undefined))
+    },
+  })
+
   const currentUserMember = members.find((m) => m.user_id === user?.id)
   const isOwner = currentUserMember?.role?.slug === 'owner'
+  const rightsSelectableMembers = members.filter((m) => m.user_id !== user?.id && m.is_active)
+  const allPermissionKeys = Object.values(PERMISSIONS)
 
   if (!currentCompanyId) return null
 
@@ -396,13 +443,97 @@ function UsersList() {
           )}
         </div>
       </Card>
+
+      {isOwner && rightsSelectableMembers.length > 0 && (
+        <Card>
+          <div className="border-b border-[var(--border-solid)] p-4">
+            <h2 className="font-semibold text-[var(--text-primary)] flex items-center gap-2">
+              <Shield className="h-5 w-5 text-[var(--accent)]" />
+              Gestion des droits
+            </h2>
+          </div>
+          <div className="p-4 space-y-4">
+            <p className="text-sm text-[var(--text-muted)]">
+              Sélectionnez un utilisateur pour voir et modifier ses droits (permissions). Les droits effectifs = rôle de base + ajouts/retraits que vous définissez ici.
+            </p>
+            <div>
+              <Label className="mb-2 block">Utilisateur</Label>
+              <select
+                value={rightsSelectedUserId ?? ''}
+                onChange={(e) => setRightsSelectedUserId(e.target.value || null)}
+                className="w-full min-h-[44px] rounded-lg border border-[var(--border-solid)] bg-slate-50 px-3 py-2 text-sm dark:bg-slate-800 text-[var(--text-primary)]"
+              >
+                <option value="">— Choisir un utilisateur —</option>
+                {rightsSelectableMembers.map((m) => (
+                  <option key={m.id} value={m.user_id}>
+                    {(m.profile?.full_name?.trim() || 'Sans nom')} ({m.role.name})
+                  </option>
+                ))}
+              </select>
+            </div>
+            {rightsSelectedUserId && (
+              <>
+                {rightsLoading ? (
+                  <p className="text-sm text-[var(--text-muted)] py-4">Chargement des droits…</p>
+                ) : rightsError ? (
+                  <div className="space-y-2">
+                    <p className="text-sm text-[var(--danger)]">{rightsError}</p>
+                    <Button variant="secondary" size="sm" onClick={() => refetchRights()}>
+                      Réessayer
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-[var(--text-secondary)]">
+                      Droits effectifs (cochez pour ajouter, décochez pour retirer)
+                    </p>
+                    <ul className="space-y-2">
+                      {allPermissionKeys.map((key) => {
+                        const label = PERMISSION_LABELS[key as keyof typeof PERMISSION_LABELS]
+                        const hasRight = rightsPermissionKeys.includes(key)
+                        const updating = rightsUpdatingKeys.has(key)
+                        return (
+                          <li
+                            key={key}
+                            className="flex items-center justify-between gap-3 py-2 border-b border-[var(--border-solid)] last:border-0"
+                          >
+                            <span className="text-sm text-[var(--text-primary)]">{label}</span>
+                            <label className="flex items-center gap-2 shrink-0">
+                              <input
+                                type="checkbox"
+                                checked={hasRight}
+                                disabled={updating}
+                                onChange={() =>
+                                  togglePermissionMutation.mutate({
+                                    key,
+                                    granted: !hasRight,
+                                  })
+                                }
+                                className="rounded border-[var(--border-solid)] text-[var(--accent)]"
+                              />
+                              {updating && <span className="text-xs text-[var(--text-muted)]">…</span>}
+                            </label>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </Card>
+      )}
     </div>
   )
 }
 
 export function UsersPage() {
   return (
-    <RequirePermission permission={PERMISSIONS.users_manage}>
+    <RequirePermission
+      permission={PERMISSIONS.users_manage}
+      fallback={<p className="p-4 text-[var(--text-muted)]">Vous n'avez pas accès à la gestion des utilisateurs.</p>}
+    >
       <UsersList />
     </RequirePermission>
   )
