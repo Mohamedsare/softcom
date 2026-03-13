@@ -24,6 +24,10 @@ import {
   MoreHorizontal,
   Sparkles,
   RefreshCw,
+  ArrowLeftRight,
+  Banknote,
+  Building2,
+  PackageSearch,
 } from 'lucide-react'
 
 const sidebarWidth = 240
@@ -39,8 +43,12 @@ const mobileMoreItemsBase = [
   { to: ROUTES.reports, label: 'Rapports', icon: TrendingUp, needReports: true },
   { to: ROUTES.ai, label: 'Prédictions IA', icon: Sparkles, needAi: true },
   { to: ROUTES.inventory, label: 'Stock', icon: BarChart3 },
+  { to: ROUTES.stockCashier, label: 'Stock C', icon: PackageSearch },
   { to: ROUTES.customers, label: 'Clients', icon: UserCircle },
+  { to: ROUTES.suppliers, label: 'Fournisseurs', icon: Building2 },
   { to: ROUTES.purchases, label: 'Achats', icon: Truck },
+  { to: ROUTES.transfers, label: 'Transferts', icon: ArrowLeftRight },
+  { to: ROUTES.cash, label: 'Caisse', icon: Banknote, needCash: true },
   { to: ROUTES.stores, label: 'Boutiques', icon: Store },
   { to: ROUTES.users, label: 'Utilisateurs', icon: Users, needUsers: true },
   { to: ROUTES.settings, label: 'Paramètres', icon: Settings, needSettings: true },
@@ -60,13 +68,15 @@ export function AppShell() {
   const canSettings = hasPermission(PERMISSIONS.settings_manage)
   const canReports = hasPermission(PERMISSIONS.reports_view_global) || hasPermission(PERMISSIONS.reports_view_store)
   const canAi = hasPermission(PERMISSIONS.ai_insights_view)
+  const canCash = hasPermission(PERMISSIONS.cash_open_close)
 
   const mobileMoreItems = mobileMoreItemsBase.filter(
     (i) =>
       (!('needReports' in i) || canReports) &&
       (!('needAi' in i) || canAi) &&
       (!('needUsers' in i) || canUsers) &&
-      (!('needSettings' in i) || canSettings)
+      (!('needSettings' in i) || canSettings) &&
+      (!('needCash' in i) || canCash)
   )
 
   const handleSignOut = async () => {
@@ -182,6 +192,53 @@ export function AppShell() {
           <BarChart3 className="h-5 w-5 shrink-0" />
           {!collapsed && <span>Stock</span>}
         </Link>
+        <Link
+          to={ROUTES.stockCashier}
+          className={`flex items-center gap-3 rounded-xl px-3 py-2 min-h-[44px] transition-colors touch-manipulation ${
+            isActive(ROUTES.stockCashier) ? 'bg-orange-500/10 text-[var(--accent)]' : 'text-[var(--text-secondary)] hover:bg-orange-500/10 hover:text-[var(--accent)]'
+          }`}
+        >
+          <PackageSearch className="h-5 w-5 shrink-0" />
+          {!collapsed && <span>Stock C</span>}
+        </Link>
+        <Link
+          to={ROUTES.customers}
+          className={`flex items-center gap-3 rounded-xl px-3 py-2 min-h-[44px] transition-colors touch-manipulation ${
+            isActive(ROUTES.customers) ? 'bg-orange-500/10 text-[var(--accent)]' : 'text-[var(--text-secondary)] hover:bg-orange-500/10 hover:text-[var(--accent)]'
+          }`}
+        >
+          <UserCircle className="h-5 w-5 shrink-0" />
+          {!collapsed && <span>Clients</span>}
+        </Link>
+        <Link
+          to={ROUTES.suppliers}
+          className={`flex items-center gap-3 rounded-xl px-3 py-2 min-h-[44px] transition-colors touch-manipulation ${
+            isActive(ROUTES.suppliers) ? 'bg-orange-500/10 text-[var(--accent)]' : 'text-[var(--text-secondary)] hover:bg-orange-500/10 hover:text-[var(--accent)]'
+          }`}
+        >
+          <Building2 className="h-5 w-5 shrink-0" />
+          {!collapsed && <span>Fournisseurs</span>}
+        </Link>
+        <Link
+          to={ROUTES.transfers}
+          className={`flex items-center gap-3 rounded-xl px-3 py-2 min-h-[44px] transition-colors touch-manipulation ${
+            isActive(ROUTES.transfers) ? 'bg-orange-500/10 text-[var(--accent)]' : 'text-[var(--text-secondary)] hover:bg-orange-500/10 hover:text-[var(--accent)]'
+          }`}
+        >
+          <ArrowLeftRight className="h-5 w-5 shrink-0" />
+          {!collapsed && <span>Transferts</span>}
+        </Link>
+        {canCash && (
+          <Link
+            to={ROUTES.cash}
+            className={`flex items-center gap-3 rounded-xl px-3 py-2 min-h-[44px] transition-colors touch-manipulation ${
+              isActive(ROUTES.cash) ? 'bg-orange-500/10 text-[var(--accent)]' : 'text-[var(--text-secondary)] hover:bg-orange-500/10 hover:text-[var(--accent)]'
+            }`}
+          >
+            <Banknote className="h-5 w-5 shrink-0" />
+            {!collapsed && <span>Caisse</span>}
+          </Link>
+        )}
         {canReports && (
           <Link
             to={ROUTES.reports}

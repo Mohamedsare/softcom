@@ -33,7 +33,7 @@ type Period = 'today' | 'week' | 'month'
 export function ReportsPage() {
   return (
     <RequirePermission
-      permission={PERMISSIONS.reports_view_store}
+      permission={[PERMISSIONS.reports_view_store, PERMISSIONS.reports_view_global]}
       fallback={<p className="p-4 text-[var(--text-muted)]">Vous n'avez pas accès aux rapports.</p>}
     >
       <ReportsPageContent />

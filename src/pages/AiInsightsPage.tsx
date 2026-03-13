@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Card, PageHeader, Button } from '@/components/ui'
+import { RequirePermission } from '@/components/guards/RequirePermission'
+import { PERMISSIONS } from '@/constants/permissions'
 import { useCompany } from '@/context/CompanyContext'
 import { isDeepSeekConfigured } from '@/features/ai/api/deepseekApi'
 import {
@@ -17,6 +19,17 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { toast } from 'sonner'
 
 export function AiInsightsPage() {
+  return (
+    <RequirePermission
+      permission={PERMISSIONS.ai_insights_view}
+      fallback={<p className="p-4 text-[var(--text-muted)]">Vous n'avez pas accès aux prédictions IA.</p>}
+    >
+      <AiInsightsPageContent />
+    </RequirePermission>
+  )
+}
+
+function AiInsightsPageContent() {
   const queryClient = useQueryClient()
   const { currentCompanyId, currentStoreId, companies, stores } = useCompany()
   const [loading, setLoading] = useState(false)
