@@ -74,6 +74,12 @@ export async function setCompanyMemberActive(
   if (error) throw error
 }
 
+/** Retire un membre de l'entreprise (supprime ses assignations boutique puis son rôle). Réservé au owner. */
+export async function removeCompanyMember(ucrId: string): Promise<void> {
+  const { error } = await supabase.rpc('remove_company_member', { p_ucr_id: ucrId })
+  if (error) throw error
+}
+
 /** Permissions de l'utilisateur courant pour une entreprise (via rôles). */
 export async function getMyPermissionKeys(companyId: string): Promise<string[]> {
   const { data, error } = await supabase.rpc('get_my_permission_keys', {

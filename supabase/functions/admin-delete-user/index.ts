@@ -1,4 +1,6 @@
-// Edge Function: supprimer un utilisateur (super admin uniquement).
+// Edge Function: supprimer n'importe quel utilisateur (super admin uniquement).
+// Le super_admin peut supprimer tout type d'utilisateur (owner, manager, caissier, autre super_admin, etc.).
+// Seule restriction : il ne peut pas supprimer son propre compte.
 // Déploiement: supabase functions deploy admin-delete-user
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -70,6 +72,7 @@ Deno.serve(async (req) => {
       })
     }
 
+    // Aucune restriction sur le type d'utilisateur cible : owner, manager, caissier, super_admin, etc.
     const { error: deleteError } = await admin.auth.admin.deleteUser(userId)
     if (deleteError) {
       return new Response(JSON.stringify({ error: deleteError.message }), {
@@ -77,6 +80,9 @@ Deno.serve(async (req) => {
         headers: { ...cors, 'Content-Type': 'application/json' },
       })
     }
+
+    // Nettoyer public.profiles (auth.users est déjà supprimé ; user_company_roles / user_store_assignments en CASCADE).
+    await admin.from('profiles').delete().eq('id', userId)
 
     return new Response(JSON.stringify({ ok: true }), {
       status: 200,

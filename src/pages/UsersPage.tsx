@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Card, Button, PageHeader, Input, Label } from '@/components/ui'
+import { useAuth } from '@/context/AuthContext'
 import { useCompany } from '@/context/CompanyContext'
 import { RequirePermission } from '@/components/guards/RequirePermission'
 import { PERMISSIONS } from '@/constants/permissions'
@@ -7,14 +8,16 @@ import {
   listCompanyMembers,
   listRoles,
   setCompanyMemberActive,
+  removeCompanyMember,
 } from '@/features/users/api/usersApi'
 import { supabase } from '@/lib/supabase'
 import { translateErrorMessage } from '@/lib/errorMessages'
-import { UserPlus, UserCheck, UserX, X, KeyRound } from 'lucide-react'
+import { UserPlus, UserCheck, UserX, X, KeyRound, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useState } from 'react'
 
 function UsersList() {
+  const { user } = useAuth()
   const { currentCompanyId, stores } = useCompany()
   const queryClient = useQueryClient()
   const [creating, setCreating] = useState(false)
@@ -137,6 +140,18 @@ function UsersList() {
     },
     onError: (e) => toast.error(translateErrorMessage(e instanceof Error ? e.message : undefined)),
   })
+
+  const deleteMemberMutation = useMutation({
+    mutationFn: (ucrId: string) => removeCompanyMember(ucrId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['company-members', currentCompanyId] })
+      toast.success('Utilisateur retiré de l\'entreprise')
+    },
+    onError: (e) => toast.error(translateErrorMessage(e instanceof Error ? e.message : undefined)),
+  })
+
+  const currentUserMember = members.find((m) => m.user_id === user?.id)
+  const isOwner = currentUserMember?.role?.slug === 'owner'
 
   if (!currentCompanyId) return null
 
@@ -356,6 +371,22 @@ function UsersList() {
                             <UserCheck className="h-4 w-4" />
                           )}
                         </Button>
+                        {isOwner && m.user_id !== user?.id && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => {
+                              if (window.confirm('Retirer cet utilisateur de l\'entreprise ? Il perdra l\'accès à l\'entreprise et à ses boutiques.')) {
+                                deleteMemberMutation.mutate(m.id)
+                              }
+                            }}
+                            disabled={deleteMemberMutation.isPending}
+                            className="shrink-0 text-[var(--danger)] hover:bg-red-50 dark:hover:bg-red-900/20"
+                            title="Supprimer (retirer de l'entreprise)"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </>
                     )}
                   </div>

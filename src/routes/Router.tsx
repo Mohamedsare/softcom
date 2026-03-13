@@ -7,6 +7,7 @@ import { DashboardPage } from '@/pages/DashboardPage'
 import { StoresPage } from '@/pages/StoresPage'
 import { ProductsPage } from '@/pages/ProductsPage'
 import { InventoryPage } from '@/pages/InventoryPage'
+import { StockCashierPage } from '@/pages/StockCashierPage'
 import { SalesPage } from '@/pages/SalesPage'
 import { PosPage } from '@/pages/PosPage'
 import { PurchasesPage } from '@/pages/PurchasesPage'
@@ -47,6 +48,7 @@ export function Router() {
           <Route path="stores/:storeId/pos" element={<PosPage />} />
           <Route path="products" element={<ProductsPage />} />
           <Route path="inventory" element={<InventoryPage />} />
+          <Route path="stock-c" element={<StockCashierPage />} />
           <Route path="sales" element={<SalesPage />} />
           <Route path="purchases" element={<PurchasesPage />} />
           <Route path="customers" element={<CustomersPage />} />

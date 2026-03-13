@@ -84,7 +84,7 @@ export function SuppliersPage() {
         }
       />
       <Card>
-        <div className="overflow-x-auto">
+        <div className="table-responsive">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-[var(--border-solid)] bg-slate-50 dark:bg-slate-800/50">

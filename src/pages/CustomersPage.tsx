@@ -158,7 +158,7 @@ export function CustomersPage() {
             />
           </div>
         </div>
-        <div className="overflow-x-auto -mx-4 sm:mx-0">
+        <div className="table-responsive -mx-4 sm:mx-0">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-[var(--border-solid)] bg-slate-50 dark:bg-slate-800/50">

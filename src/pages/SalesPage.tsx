@@ -24,7 +24,7 @@ export function SalesPage() {
     setFilterStore(currentStoreId ?? '')
   }, [currentStoreId])
 
-  const { data: sales = [], isLoading } = useQuery({
+  const { data: sales = [], isLoading, isError, error, refetch } = useQuery({
     queryKey: [
       'sales',
       currentCompanyId,
@@ -162,14 +162,23 @@ export function SalesPage() {
             />
           </div>
 
-          {isLoading ? (
+          {isError ? (
+            <div className="py-8 flex flex-col items-center gap-3 text-center">
+              <p className="text-[var(--danger)]">
+                {error instanceof Error ? error.message : 'Erreur lors du chargement.'}
+              </p>
+              <Button variant="secondary" size="sm" onClick={() => refetch()}>
+                Réessayer
+              </Button>
+            </div>
+          ) : isLoading ? (
             <p className="py-8 text-center text-[var(--text-muted)]">Chargement...</p>
           ) : sales.length === 0 ? (
             <p className="py-8 text-center text-[var(--text-muted)]">
               Aucune vente. Créez-en une depuis le POS.
             </p>
           ) : (
-            <div className="overflow-x-auto -mx-4 sm:mx-0">
+            <div className="table-responsive -mx-4 sm:mx-0">
               <table className="w-full text-left text-sm">
                 <thead>
                   <tr className="border-b border-[var(--border-solid)] bg-slate-50 dark:bg-slate-800/50">

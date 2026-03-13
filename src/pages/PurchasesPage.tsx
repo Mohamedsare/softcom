@@ -52,7 +52,7 @@ export function PurchasesPage() {
   const [filterFrom, setFilterFrom] = useState('')
   const [filterTo, setFilterTo] = useState('')
 
-  const { data: purchases = [], isLoading } = useQuery({
+  const { data: purchases = [], isLoading, isError, error, refetch } = useQuery({
     queryKey: [
       'purchases',
       currentCompanyId,
@@ -184,14 +184,23 @@ export function PurchasesPage() {
             />
           </div>
 
-          {isLoading ? (
+          {isError ? (
+            <div className="py-8 flex flex-col items-center gap-3 text-center">
+              <p className="text-[var(--danger)]">
+                {error instanceof Error ? error.message : 'Erreur lors du chargement.'}
+              </p>
+              <Button variant="secondary" size="sm" onClick={() => refetch()}>
+                Réessayer
+              </Button>
+            </div>
+          ) : isLoading ? (
             <p className="py-8 text-center text-[var(--text-muted)]">Chargement...</p>
           ) : purchases.length === 0 ? (
             <p className="py-8 text-center text-[var(--text-muted)]">
               Aucun achat. Créez-en un.
             </p>
           ) : (
-            <div className="overflow-x-auto -mx-4 sm:mx-0">
+            <div className="table-responsive -mx-4 sm:mx-0">
               <table className="w-full text-left text-sm">
                 <thead>
                   <tr className="border-b border-[var(--border-solid)] bg-slate-50 dark:bg-slate-800/50">

@@ -37,37 +37,60 @@ INSERT INTO public.permissions (id, key) VALUES
   (uuid_generate_v4(), 'audit.view')
 ON CONFLICT (key) DO NOTHING;
 
--- ========== ROLE_PERMISSIONS (owner gets all except stores.approve_extra; super_admin gets all) ==========
+-- ========== ROLE_PERMISSIONS ==========
+-- Super admin : tout
 INSERT INTO public.role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM public.roles r CROSS JOIN public.permissions p
 WHERE r.slug = 'super_admin'
 ON CONFLICT DO NOTHING;
 
+-- Owner : tout sauf stores.approve_extra
 INSERT INTO public.role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM public.roles r CROSS JOIN public.permissions p
 WHERE r.slug = 'owner' AND p.key != 'stores.approve_extra'
 ON CONFLICT DO NOTHING;
 
+-- Manager : produits, ventes, stock, achats, rapports ; pas utilisateurs, paramètres, créer boutiques, IA
 INSERT INTO public.role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM public.roles r CROSS JOIN public.permissions p
-WHERE r.slug IN ('manager', 'store_manager') AND p.key IN ('sales.create', 'purchases.create', 'stock.adjust', 'stock.transfer', 'reports.view_global', 'reports.view_store', 'ai.insights.view')
+WHERE r.slug = 'manager' AND p.key IN (
+  'products.create', 'products.update', 'products.delete',
+  'sales.create', 'sales.cancel', 'sales.refund',
+  'purchases.create', 'stock.adjust', 'stock.transfer',
+  'reports.view_global', 'reports.view_store'
+)
 ON CONFLICT DO NOTHING;
 
+-- Store Manager : comme Manager mais rapports boutique uniquement ; pas rapports globaux, pas utilisateurs, paramètres, boutiques, IA
 INSERT INTO public.role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM public.roles r CROSS JOIN public.permissions p
-WHERE r.slug = 'cashier' AND p.key IN ('sales.create', 'reports.view_store', 'cash.open_close')
+WHERE r.slug = 'store_manager' AND p.key IN (
+  'products.create', 'products.update', 'products.delete',
+  'sales.create', 'sales.cancel', 'sales.refund',
+  'purchases.create', 'stock.adjust', 'stock.transfer',
+  'reports.view_store'
+)
 ON CONFLICT DO NOTHING;
 
+-- Magasinier : stock (ajuster, transfert) ; produits en lecture via UI
 INSERT INTO public.role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM public.roles r CROSS JOIN public.permissions p
-WHERE r.slug = 'stock_manager' AND p.key IN ('stock.adjust', 'stock.transfer', 'reports.view_store')
+WHERE r.slug = 'stock_manager' AND p.key IN ('stock.adjust', 'stock.transfer')
 ON CONFLICT DO NOTHING;
 
+-- Caissier : ventes (caisse) uniquement
+INSERT INTO public.role_permissions (role_id, permission_id)
+SELECT r.id, p.id FROM public.roles r CROSS JOIN public.permissions p
+WHERE r.slug = 'cashier' AND p.key IN ('sales.create')
+ON CONFLICT DO NOTHING;
+
+-- Comptable : voir ventes, achats, clients, fournisseurs, rapports (lecture / export)
 INSERT INTO public.role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM public.roles r CROSS JOIN public.permissions p
 WHERE r.slug = 'accountant' AND p.key IN ('reports.view_global', 'reports.view_store', 'audit.view')
 ON CONFLICT DO NOTHING;
 
+-- Lecture seule : produits, stock, clients, rapports en lecture
 INSERT INTO public.role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM public.roles r CROSS JOIN public.permissions p
 WHERE r.slug = 'viewer' AND p.key IN ('reports.view_global', 'reports.view_store')

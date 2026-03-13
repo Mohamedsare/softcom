@@ -53,8 +53,8 @@ Deno.serve(async (req) => {
       store_ids?: string[]
     }
 
-    const { email, password, full_name, role_slug, company_id, store_ids } = body
-    if (!email?.trim() || !password || !role_slug || !company_id) {
+    const { email, password, full_name, role_slug: rawRoleSlug, company_id, store_ids } = body
+    if (!email?.trim() || !password || !rawRoleSlug || !company_id) {
       return new Response(
         JSON.stringify({ error: 'Missing email, password, role_slug or company_id' }),
         { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } }
@@ -68,10 +68,19 @@ Deno.serve(async (req) => {
       )
     }
 
-    const { data: roleRow } = await admin.from('roles').select('id').eq('slug', role_slug).single()
+    // Normaliser le slug (rôles en base sont en minuscules) et interdire super_admin (réservé plateforme).
+    const role_slug = String(rawRoleSlug).trim().toLowerCase()
+    if (role_slug === 'super_admin') {
+      return new Response(
+        JSON.stringify({ error: 'Le rôle super admin ne peut pas être attribué depuis cette création.' }),
+        { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    const { data: roleRow } = await admin.from('roles').select('id, slug').eq('slug', role_slug).single()
     if (!roleRow) {
       return new Response(
-        JSON.stringify({ error: 'Rôle invalide' }),
+        JSON.stringify({ error: 'Rôle invalide ou inconnu. Vérifiez le type d\'utilisateur.' }),
         { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } }
       )
     }
@@ -125,12 +134,12 @@ Deno.serve(async (req) => {
       updated_at: new Date().toISOString(),
     })
 
-    const { error: ucrError } = await admin.from('user_company_roles').insert({
+    const { data: insertedUcr, error: ucrError } = await admin.from('user_company_roles').insert({
       user_id: userId,
       company_id,
       role_id: roleRow.id,
       is_active: true,
-    })
+    }).select('id, role_id').single()
     if (ucrError) {
       await admin.auth.admin.deleteUser(userId)
       return new Response(JSON.stringify({ error: 'Erreur attribution rôle: ' + ucrError.message }), {
@@ -138,15 +147,28 @@ Deno.serve(async (req) => {
         headers: { ...cors, 'Content-Type': 'application/json' },
       })
     }
+    if (!insertedUcr || insertedUcr.role_id !== roleRow.id) {
+      await admin.auth.admin.deleteUser(userId)
+      return new Response(JSON.stringify({ error: 'Le type d\'utilisateur n\'a pas été enregistré correctement.' }), {
+        status: 500,
+        headers: { ...cors, 'Content-Type': 'application/json' },
+      })
+    }
 
     if (store_ids?.length) {
-      await admin.from('user_store_assignments').insert(
+      const { error: assignError } = await admin.from('user_store_assignments').insert(
         store_ids.map((store_id) => ({ user_id: userId, store_id, company_id }))
       )
+      if (assignError) {
+        return new Response(JSON.stringify({ error: 'Utilisateur créé mais erreur affectation boutiques: ' + assignError.message }), {
+          status: 500,
+          headers: { ...cors, 'Content-Type': 'application/json' },
+        })
+      }
     }
 
     return new Response(
-      JSON.stringify({ id: userId, email: newUser.user.email }),
+      JSON.stringify({ id: userId, email: newUser.user.email, role_slug: role_slug }),
       { status: 200, headers: { ...cors, 'Content-Type': 'application/json' } }
     )
   } catch (e) {

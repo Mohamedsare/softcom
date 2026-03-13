@@ -13,6 +13,8 @@ export const ROUTES = {
   users: '/users',
   products: '/products',
   inventory: '/inventory',
+  /** Stock C (caissier) : ruptures + alertes, lecture seule */
+  stockCashier: '/stock-c',
   sales: '/sales',
   pos: (storeId?: string) => (storeId ? `/stores/${storeId}/pos` : '/pos'),
   purchases: '/purchases',

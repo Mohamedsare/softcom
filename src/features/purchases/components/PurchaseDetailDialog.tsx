@@ -28,7 +28,7 @@ const PAYMENT_LABEL: Record<string, string> = {
 }
 
 export function PurchaseDetailDialog({ purchaseId, open, onClose }: PurchaseDetailDialogProps) {
-  const { data: purchase, isLoading } = useQuery({
+  const { data: purchase, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['purchase', purchaseId],
     queryFn: () => purchasesApi.get(purchaseId!),
     enabled: open && !!purchaseId,
@@ -42,7 +42,16 @@ export function PurchaseDetailDialog({ purchaseId, open, onClose }: PurchaseDeta
           <Dialog.Title className="text-lg font-semibold text-[var(--text-primary)]">
             Détail achat {purchase?.reference ?? ''}
           </Dialog.Title>
-          {isLoading ? (
+          {isError ? (
+            <div className="py-6 flex flex-col items-center gap-3 text-center">
+              <p className="text-sm text-[var(--danger)]">
+                {error instanceof Error ? error.message : 'Erreur lors du chargement.'}
+              </p>
+              <Button variant="secondary" size="sm" onClick={() => refetch()}>
+                Réessayer
+              </Button>
+            </div>
+          ) : isLoading ? (
             <p className="py-8 text-center text-[var(--text-muted)]">Chargement...</p>
           ) : purchase ? (
             <div className="mt-4 space-y-4">

@@ -45,7 +45,7 @@ export function InventoryPage() {
   } | null>(null)
   const [showMovements, setShowMovements] = useState(false)
 
-  const { data: rawItems = [], isLoading } = useQuery({
+  const { data: rawItems = [], isLoading, isError, error, refetch } = useQuery({
     queryKey: ['inventory', currentCompanyId, currentStoreId, search, filterCategory],
     queryFn: () =>
       inventoryApi.list(currentCompanyId!, currentStoreId!, {
@@ -327,14 +327,23 @@ export function InventoryPage() {
           </p>
 
           {!showMovements ? (
-            isLoading ? (
+            isError ? (
+              <div className="py-8 flex flex-col items-center gap-3 text-center">
+                <p className="text-[var(--danger)]">
+                  {error instanceof Error ? error.message : 'Erreur lors du chargement.'}
+                </p>
+                <Button variant="secondary" size="sm" onClick={() => refetch()}>
+                  Réessayer
+                </Button>
+              </div>
+            ) : isLoading ? (
               <p className="py-8 text-center text-[var(--text-muted)]">Chargement...</p>
             ) : items.length === 0 ? (
               <p className="py-8 text-center text-[var(--text-muted)]">
                 Aucun produit correspondant. Créez des produits ou ajustez les filtres.
               </p>
             ) : (
-              <div className="overflow-x-auto -mx-4 sm:mx-0">
+              <div className="table-responsive -mx-4 sm:mx-0">
                 <table className="w-full text-left text-sm">
                   <thead>
                     <tr className="border-b border-[var(--border-solid)] bg-slate-50 dark:bg-slate-800/50">
@@ -411,7 +420,7 @@ export function InventoryPage() {
               </div>
             )
           ) : (
-            <div className="overflow-x-auto -mx-4 sm:mx-0">
+            <div className="table-responsive -mx-4 sm:mx-0">
               <table className="w-full text-left text-sm">
                 <thead>
                   <tr className="border-b border-[var(--border-solid)] bg-slate-50 dark:bg-slate-800/50">

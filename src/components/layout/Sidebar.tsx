@@ -18,6 +18,7 @@ import {
   Shield,
   ChevronLeft,
   ChevronRight,
+  LogOut,
 } from 'lucide-react'
 
 const navItems = [
@@ -148,7 +149,7 @@ export function Sidebar() {
           onClick={() => signOut()}
           className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-slate-700/50 hover:text-[var(--danger)]"
         >
-          <ArrowLeftRight className="h-5 w-5 shrink-0" />
+          <LogOut className="h-5 w-5 shrink-0" />
           {!collapsed && <span>Déconnexion</span>}
         </button>
       </div>
